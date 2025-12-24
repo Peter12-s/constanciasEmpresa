@@ -411,8 +411,15 @@ export async function generateAndDownloadZipDC3(
       const startNorm = s ? String(s).slice(0, 10) : undefined;
       const endNorm = e ? String(e).slice(0, 10) : undefined;
       const resolvedPeriod = (startNorm || endNorm) ? `${startNorm || ''}${startNorm && endNorm ? ' / ' : ''}${endNorm || ''}` : (perCert.course_period ?? '');
-      // intentar obtener id del curso de la asociación (varias claves posibles)
-      const courseId = courseItem?.course?.id ?? courseItem?.course_id ?? courseItem?.id ?? undefined;
+      
+      // Intentar obtener id del curso de la asociación (priorizar _id de MongoDB)
+      const courseId = courseItem?.course?._id ?? courseItem?.course?.id ?? courseItem?.course_id ?? courseItem?.id ?? undefined;
+      
+      console.log('Generando PDF para curso:', {
+        courseName: resolvedCourseName,
+        courseId,
+        courseItem
+      });
 
       const perCourseCert = {
         ...perCert,
