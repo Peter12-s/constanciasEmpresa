@@ -627,7 +627,8 @@ export function ConstanciasAdminPage() {
             const keys = filteredKeys;
             const uniqueCourseNames = new Set<string>(selectedRowUsers.map(u => (u.cursoInteres || '').toString().trim()).filter(Boolean));
             const moreThanOneCursante = keys.length > 1;
-            const showTopCourse = moreThanOneCursante && uniqueCourseNames.size === 1;
+            // Deshabilitar showTopCourse para permitir edición individual de fechas
+            const showTopCourse = false;
             const keysToShow = keys.length === 1 ? keys : pagedKeys;
 
             if (keys.length === 0) return (<div style={{ padding: 20, textAlign: 'center' }}><Text color="dimmed">No hay coincidencias</Text></div>);
@@ -742,18 +743,25 @@ export function ConstanciasAdminPage() {
                               const inicio = String(item.fechaInicio ?? '').trim();
                               const fin = String(item.fechaFin ?? '').trim();
 
-                              // Solo detectar conflictos si hay múltiples cursos para este cursante
+                              // Solo detectar conflictos si hay múltiples CURSOS DIFERENTES para este cursante
                               let isConflict = false;
                               if (hasMultipleCourses) {
-                                // mismo inicio repetido
-                                const sameStartCount = inicio ? (startCounts[inicio] ?? 0) : 0;
-                                let overlaps = false;
-                                for (let j = 0; j < ranges.length; j++) {
-                                  if (j === ci) continue;
-                                  const r = ranges[j];
-                                  if (rangesOverlap(inicio, fin, r.start, r.end)) { overlaps = true; break; }
+                                // Verificar que los cursos sean diferentes
+                                const coursesInGroup = g.indices.map(idx => String(selectedRowUsers[idx]?.cursoInteres ?? '').trim()).filter(Boolean);
+                                const uniqueCoursesInGroup = new Set(coursesInGroup);
+                                
+                                // Solo marcar conflicto si hay múltiples cursos diferentes
+                                if (uniqueCoursesInGroup.size > 1) {
+                                  // mismo inicio repetido
+                                  const sameStartCount = inicio ? (startCounts[inicio] ?? 0) : 0;
+                                  let overlaps = false;
+                                  for (let j = 0; j < ranges.length; j++) {
+                                    if (j === ci) continue;
+                                    const r = ranges[j];
+                                    if (rangesOverlap(inicio, fin, r.start, r.end)) { overlaps = true; break; }
+                                  }
+                                  isConflict = (sameStartCount > 1) || overlaps;
                                 }
-                                isConflict = (sameStartCount > 1) || overlaps;
                               }
 
                               return (
@@ -780,7 +788,7 @@ export function ConstanciasAdminPage() {
         </div>
 
         {(() => {
-          // Detectar si hay algún conflicto de fechas en cursantes con múltiples cursos
+          // Detectar si hay algún conflicto de fechas en cursantes con múltiples cursos DIFERENTES
           let hasAnyConflict = false;
           const groupedByName: Record<string, number[]> = {};
           selectedRowUsers.forEach((u, ix) => {
@@ -792,6 +800,17 @@ export function ConstanciasAdminPage() {
           Object.values(groupedByName).forEach((indices) => {
             // Solo verificar conflictos si este cursante tiene múltiples cursos
             if (indices.length <= 1) return;
+            
+            // Verificar si los cursos son diferentes (no solo múltiples registros del mismo curso)
+            const uniqueCourses = new Set<string>();
+            indices.forEach((ix2) => {
+              const it2 = selectedRowUsers[ix2] ?? {};
+              const courseName = String(it2.cursoInteres ?? '').trim();
+              if (courseName) uniqueCourses.add(courseName);
+            });
+            
+            // Si todos los registros son del mismo curso, no hay conflicto (múltiples cursantes en un curso)
+            if (uniqueCourses.size <= 1) return;
             
             const startCounts: Record<string, number> = {};
             const ranges: Array<{ start: string; end: string }> = [];
