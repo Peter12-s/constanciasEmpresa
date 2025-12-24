@@ -292,7 +292,6 @@ export function CursosPage() {
       await fetchTrainers();
       
     } catch (e: any) {
-      console.error('Error creando capacitador:', e);
       const errorMsg = e?.message ?? 'No se pudo crear el capacitador';
       showNotification({ title: 'Error', message: errorMsg, color: 'red' });
     } finally {

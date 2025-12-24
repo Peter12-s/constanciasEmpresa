@@ -53,7 +53,6 @@ export default function ValidarPage() {
         if (!item) {
           if (!mounted) return;
           setError('Constancia no encontrada (revisa consola Network y server responses)');
-          console.error('ValidarPage: no se obtuvo item para', { id, curp });
           setLoading(false);
           return;
         }
@@ -63,19 +62,15 @@ export default function ValidarPage() {
 
         // Leer query param course_id usando useSearchParams (funciona con HashRouter)
         const courseIdFromUrl = searchParams.get('course_id');
-        console.log('Query params:', { courseIdFromUrl, allParams: Object.fromEntries(searchParams.entries()) });
         if (courseIdFromUrl) {
           setCourseIdParam(courseIdFromUrl);
-          console.log('course_id encontrado en URL:', courseIdFromUrl);
         } else {
-          console.warn('No se encontró course_id en los query params');
         }
 
         const cursantes = Array.isArray(item?.xlsx_object?.cursantes) ? item.xlsx_object.cursantes : [];
         const found = cursantes.find((c: any) => String((c.curp ?? c.CURP ?? '').toUpperCase()) === String(curp).toUpperCase());
         if (!found) {
           setError('No se encontró el cursante en la constancia (verifica CURP y contenido de XLSX en el servidor)');
-          console.error('ValidarPage: cursante no encontrado en xlsx_object.cursantes', { curp, cursantes });
           setLoading(false);
           return;
         }
@@ -111,10 +106,6 @@ export default function ValidarPage() {
   let fecha = certificate?.course_period ?? `${cursante?.fecha_inicio ?? ''} / ${cursante?.fecha_fin ?? ''}`;
   let instructor = cursante?.capacitador ?? certificate?.trainer_fullname ?? '';
   
-  console.log('=== INICIO BÚSQUEDA DE CURSO ===');
-  console.log('courseIdParam:', courseIdParam);
-  console.log('certificate_courses:', certificate?.certificate_courses);
-  
   // Buscar el curso específico en certificate_courses usando el course_id del QR
   let matched: any = null;
   try {
@@ -123,25 +114,13 @@ export default function ValidarPage() {
       matched = (certificate.certificate_courses as any[]).find((it: any) => {
         const courseMongoDB = it.course?._id ?? '';
         const courseIdField = it.course_id ?? '';
-        const courseIdAlt = it.course?.id ?? '';
-        
-        console.log('Comparando item:', {
-          courseMongoDB,
-          courseIdField,
-          courseIdAlt,
-          conParametro: courseIdParam,
-          match1: String(courseMongoDB) === String(courseIdParam),
-          match2: String(courseIdField) === String(courseIdParam),
-          match3: String(courseIdAlt) === String(courseIdParam)
-        });
-        
+        const courseIdAlt = it.course?.id ?? '';  
         return String(courseMongoDB) === String(courseIdParam) || 
                String(courseIdField) === String(courseIdParam) ||
                String(courseIdAlt) === String(courseIdParam);
       });
       
       if (matched) {
-        console.log('✅ Curso encontrado:', matched);
         curso = matched.course?.name ?? matched.course_name ?? matched.name ?? curso;
         duracion = matched.course?.duration ?? matched.duration ?? duracion;
         
@@ -154,18 +133,13 @@ export default function ValidarPage() {
         
         instructor = matched.trainer_fullname ?? matched.capacitador ?? certificate?.trainer_fullname ?? instructor;
         
-        console.log('Valores finales:', { curso, duracion, fecha, instructor });
       } else {
-        console.error('❌ No se encontró curso con course_id:', courseIdParam);
       }
     } else {
-      console.warn('Sin courseIdParam o certificate_courses no es array');
     }
   } catch (e) {
-    console.error('Error al buscar curso específico:', e);
   }
   
-  console.log('=== FIN BÚSQUEDA ===');
 
   // Valores por defecto si no se encontró asociación específica
   curso = curso || 'No especificado';

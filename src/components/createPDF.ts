@@ -296,13 +296,6 @@ export async function generateAndDownloadZipDC3(
     // Asignar tipo_firma resuelto AL FINAL para que no sea sobrescrito
     merged.tipo_firma = resolvedTipoFirma;
     
-    console.log('Tipo de firma resuelto:', {
-      override: cursante.certificate_overrides && (cursante.certificate_overrides as any).tipo_firma,
-      xlsx_object: (certificateData as any).xlsx_object?.tipo_firma,
-      raiz: (certificateData as any).tipo_firma,
-      final: merged.tipo_firma
-    });
-    
     const perCert: DC3CertificateData = merged as DC3CertificateData;
 
     // Determinar lista de cursos asociados al certificado. Buscamos varias claves posibles
@@ -320,7 +313,6 @@ export async function generateAndDownloadZipDC3(
       // Priorizar variable de entorno de Vite
       const envUrl = import.meta.env?.VITE_FRONTEND_URL;
       if (envUrl) {
-        console.log('Usando VITE_FRONTEND_URL para QR:', envUrl);
         return String(envUrl);
       }
       
@@ -331,12 +323,10 @@ export async function generateAndDownloadZipDC3(
       const { hostname, port, protocol } = window.location;
       if (hostname === 'localhost' || hostname === '127.0.0.1') {
         const devUrl = `http://${hostname}${port ? `:${port}` : ''}`;
-        console.log('Usando URL de desarrollo para QR:', devUrl);
         return devUrl;
       }
       
       // En producción usar origin (incluye protocolo, host y puerto)
-      console.log('Usando window.location.origin para QR:', window.location.origin);
       return window.location.origin;
     })();
 
@@ -352,30 +342,19 @@ export async function generateAndDownloadZipDC3(
       // Si la constancia tiene sign y el método de firma es DIGITAL (a nivel de cursante o certificado), descargarla
       const cursanteTipo = (cursante as any).tipo_firma as string | undefined;
       const certTipo = (perCert as any).tipo_firma as string | undefined;
-      
-      console.log('Verificando firma digital:', {
-        signId,
-        cursanteTipo,
-        certTipo,
-        debeDescargar: signId && (cursanteTipo === 'DIGITAL' || certTipo === 'DIGITAL')
-      });
 
       if (signId && (cursanteTipo === 'DIGITAL' || certTipo === 'DIGITAL')) {
         if (signatureCache.has(signId)) {
           signatureDataUrl = signatureCache.get(signId);
-          console.log('Firma recuperada de caché');
         } else {
           // usar endpoint de descarga directo de Drive
           const driveUrl = `${appConfig.BACKEND_URL}/google/proxy-drive?id=${encodeURIComponent(signId)}`;
-          console.log('Descargando firma desde:', driveUrl);
           
           // intentar convertir a data URL
           const resp = await fetch(driveUrl);
-          console.log('Respuesta del servidor:', resp.status, resp.statusText);
           
           if (resp.ok) {
             const blob = await resp.blob();
-            console.log('Blob recibido, tipo:', blob.type, 'tamaño:', blob.size);
             
             signatureDataUrl = await new Promise<string>((resolve, reject) => {
               const reader = new FileReader();
@@ -383,18 +362,14 @@ export async function generateAndDownloadZipDC3(
               reader.onerror = reject;
               reader.readAsDataURL(blob);
             });
-            console.log('Firma convertida a DataURL, longitud:', signatureDataUrl?.length);
           } else {
-            console.error('Error al descargar firma, status:', resp.status);
           }
           // almacenar en caché (incluso si es undefined) para evitar reintentos innecesarios
           signatureCache.set(signId, signatureDataUrl);
         }
       } else {
-        console.log('No se descargará la firma porque no cumple las condiciones');
       }
     } catch (e) {
-      console.error('Error al procesar firma:', e);
       // almacenar en caché un valor undefined para no reintentar
       try { if ((perCert as any).sign) signatureCache.set((perCert as any).sign, undefined); } catch (_) {}
       signatureDataUrl = undefined;
@@ -414,12 +389,6 @@ export async function generateAndDownloadZipDC3(
       
       // Intentar obtener id del curso de la asociación (priorizar _id de MongoDB)
       const courseId = courseItem?.course?._id ?? courseItem?.course?.id ?? courseItem?.course_id ?? courseItem?.id ?? undefined;
-      
-      console.log('Generando PDF para curso:', {
-        courseName: resolvedCourseName,
-        courseId,
-        courseItem
-      });
 
       const perCourseCert = {
         ...perCert,

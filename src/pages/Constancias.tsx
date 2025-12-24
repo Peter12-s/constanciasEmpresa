@@ -362,7 +362,6 @@ export function ConstanciasAdminPage() {
       setRows((prev) => prev.map((r) => (r.id === id ? { ...r, fecha: String(patchData.course_period) } : r)));
       setVerifyPreviewOpen(false);
       setEditModalOpened(false);
-      showNotification({ title: 'OK', message: 'Constancia actualizada y aprobada.', color: 'green' });
 
       const prevRaw = certificateRawMap[id] ?? {};
 
@@ -456,36 +455,29 @@ export function ConstanciasAdminPage() {
       try {
         if (id) {
           // Enviar solo las entradas que realmente cambiaron (calculadas en `entries` más arriba)
-          if (!entries || entries.length === 0) {
-            showNotification({ title: 'Sin cambios', message: 'No hubo cambios en fechas para enviar en bulk.', color: 'blue' });
-          } else {
+          if (entries && entries.length > 0) {
             try {
               await BasicPetition({ endpoint: '/certificate-course/bulk', method: 'PATCH', data: { data: entries }, showNotifications: false });
-              showNotification({ title: 'Fechas enviadas', message: `Se enviaron ${entries.length} asociaciones en bulk (PATCH).`, color: 'green' });
             } catch (postErr: any) {
-              console.error('Error en bulk PATCH:', postErr);
               showNotification({ title: 'Error', message: 'No se pudieron actualizar las asociaciones en bulk', color: 'red' });
             }
           }
         }
       } catch (e) {
-        console.error('Error en bulk request:', e);
         showNotification({ title: 'Error', message: 'No se pudieron actualizar las fechas de cursos', color: 'red' });
       }
 
       try {
         if (certificatePatch && Object.keys(certificatePatch).length > 0 && id) {
           await BasicPetition({ endpoint: `/certificate/${id}`, method: 'PATCH', data: certificatePatch, showNotifications: false });
-          showNotification({ title: 'Actualizado', message: 'Constancia actualizada en el servidor', color: 'green' });
         }
       } catch (e) {
-        console.error('Error patching certificate:', e);
         showNotification({ title: 'Error', message: 'No se pudo actualizar la constancia en el servidor', color: 'red' });
       }
 
       await fetchCertificates();
+      showNotification({ title: 'Validación completada', message: 'La constancia ha sido validada exitosamente.', color: 'green' });
     } catch (err: any) {
-      console.error('Error al confirmar validación:', err);
       showNotification({ title: 'Error', message: 'No se pudo aplicar la validación', color: 'red' });
     } finally {
       setVerifySending(false);
@@ -718,7 +710,6 @@ export function ConstanciasAdminPage() {
       
       pdfMake.createPdf(docDefinition).download(`lista_${raw._id ?? "lista"}.pdf`);
     } catch (err) {
-      console.error(err);
       showNotification({
         title: "Error",
         message: "No se pudo generar el PDF",
