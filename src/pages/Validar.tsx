@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Container, Title, Text, Card, Loader, Center } from '@mantine/core';
 import { FaCheck } from 'react-icons/fa';
 import { BasicPetition } from '../core/petition';
 
 export default function ValidarPage() {
   const { id, curp } = useParams();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cursante, setCursante] = useState<any | null>(null);
@@ -60,13 +61,14 @@ export default function ValidarPage() {
         if (!mounted) return;
         setCertificate(item);
 
-        // leer query param course_id si existe
-        try {
-          const params = new URLSearchParams(window.location.search);
-          const q = params.get('course_id');
-          if (q) setCourseIdParam(q);
-        } catch (e) {
-          // ignore
+        // Leer query param course_id usando useSearchParams (funciona con HashRouter)
+        const courseIdFromUrl = searchParams.get('course_id');
+        console.log('Query params:', { courseIdFromUrl, allParams: Object.fromEntries(searchParams.entries()) });
+        if (courseIdFromUrl) {
+          setCourseIdParam(courseIdFromUrl);
+          console.log('course_id encontrado en URL:', courseIdFromUrl);
+        } else {
+          console.warn('No se encontró course_id en los query params');
         }
 
         const cursantes = Array.isArray(item?.xlsx_object?.cursantes) ? item.xlsx_object.cursantes : [];
