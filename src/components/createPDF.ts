@@ -284,12 +284,19 @@ export async function generateAndDownloadZipDC3(
       ?? certificateData.area_tematica
       ?? (certificateData as any).xlsx_object?.area_tematica
       ?? '6000 Seguridad';
+    // Para tipo_firma, priorizar xlsx_object sobre el nivel raíz del certificateData
     merged.tipo_firma = (cursante.certificate_overrides && (cursante.certificate_overrides as any).tipo_firma)
-      ?? (certificateData as any).tipo_firma
       ?? (certificateData as any).xlsx_object?.tipo_firma
+      ?? (certificateData as any).tipo_firma
       ?? 'FISICA';
-    // log para depuración rápido (puedes quitarlo luego)
-    // eslint-disable-next-line no-console
+    
+    console.log('Tipo de firma resuelto:', {
+      override: cursante.certificate_overrides && (cursante.certificate_overrides as any).tipo_firma,
+      xlsx_object: (certificateData as any).xlsx_object?.tipo_firma,
+      raiz: (certificateData as any).tipo_firma,
+      final: merged.tipo_firma
+    });
+    
     const perCert: DC3CertificateData = merged as DC3CertificateData;
 
     // Determinar lista de cursos asociados al certificado. Buscamos varias claves posibles
