@@ -315,34 +315,32 @@ export async function generateAndDownloadZipDC3(
     // Si no hay asociaciones, creamos una entrada única basada en perCert
     const effectiveCourses = coursesList.length > 0 ? coursesList : [{ course_name: perCert.course_name ?? perCert.course_name, start: undefined, end: undefined }];
 
+    // Obtener base URL para el QR, priorizando variable de entorno
     const baseUrl = (() => {
-      // Prefer explicit env var
-      const envUrl = (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_FRONTEND_URL)
-        ? String((import.meta as any).env.VITE_FRONTEND_URL)
-        : '';
-      if (envUrl) return envUrl;
-      if (typeof window === 'undefined') return '';
-      // If running on localhost/127.* make sure QR uses http (dev servers often don't have TLS)
-      const { hostname, port } = window.location;
-      if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        return `http://${hostname}${port ? `:${port}` : ''}`;
+      // Priorizar variable de entorno de Vite
+      const envUrl = import.meta.env?.VITE_FRONTEND_URL;
+      if (envUrl) {
+        console.log('Usando VITE_FRONTEND_URL para QR:', envUrl);
+        return String(envUrl);
       }
+      
+      // Fallback a window.location
+      if (typeof window === 'undefined') return '';
+      
+      // En desarrollo local, usar http para evitar problemas SSL
+      const { hostname, port, protocol } = window.location;
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        const devUrl = `http://${hostname}${port ? `:${port}` : ''}`;
+        console.log('Usando URL de desarrollo para QR:', devUrl);
+        return devUrl;
+      }
+      
+      // En producción usar origin (incluye protocolo, host y puerto)
+      console.log('Usando window.location.origin para QR:', window.location.origin);
       return window.location.origin;
     })();
 
-    // Asegurar que en desarrollo (localhost/127.0.0.1) use http para evitar errores SSL en móviles/lectores
-    let finalBase = baseUrl || '';
-    try {
-      const u = new URL(finalBase || window.location.origin);
-      const host = u.hostname || '';
-      if (host.includes('localhost') || host === '127.0.0.1' || host === '::1') {
-        // Forzar http
-        u.protocol = 'http:';
-        finalBase = `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`;
-      }
-    } catch (e) {
-      // ignore, keep finalBase
-    }
+    const finalBase = baseUrl || '';
 
   // Nota: generaremos el QR por curso más abajo (dentro del bucle) para incluir el course_id
 
