@@ -756,9 +756,11 @@ export function ConstanciasAdminPage() {
         legal_representative: item.legal_representative ?? '',
         workers_representative: item.workers_representative ?? '',
         area_tematica: item.xlsx_object?.area_tematica ?? item.area_tematica ?? '6000 Seguridad',
+        tipo_firma: item.xlsx_object?.tipo_firma ?? item.tipo_firma ?? 'FISICA',
         certificate_courses: item.certificate_courses ?? undefined,
         sign: item.sign ?? undefined,
-      };
+        xlsx_object: item.xlsx_object ?? undefined,
+      } as any;
 
       // Preferir el XLSX almacenado en backend para esta petición
       const sourceXlsx = item.xlsx_object ?? undefined;
