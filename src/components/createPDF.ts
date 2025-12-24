@@ -267,7 +267,7 @@ const generateSinglePdfBlob = (docDefinition: any): Promise<Blob> => {
 export async function generateAndDownloadZipDC3(
   certificateData: DC3CertificateData,
   users: Array<DC3User & { certificate_overrides?: Partial<DC3CertificateData> }>,
-  logoUrl: string = "/logo.png",
+  logoUrl: string = "logo.png",
   zipFileName: string = "constancias.zip"
 ) {   
   const zip = new JSZip();
