@@ -286,31 +286,13 @@ export function CursosPage() {
         throw new Error('El backend no devolvió un ID válido para el capacitador');
       }
       
-      const newId = String(created._id ?? created.id);
-      
-      // Construir nombre completo usando certificate_person o campos directos
-      const person = created.certificate_person ?? created.certificate_person_id ?? created;
-      const nameParts = [
-        person.f_surname ?? created.f_surname ?? payload.f_surname,
-        person.s_surname ?? created.s_surname ?? payload.s_surname,
-        person.name ?? created.name ?? payload.name
-      ].filter(Boolean);
-      const nombreCompleto = nameParts.length ? nameParts.join(' ') : payload.name;
-      
-      const nuevo: Capacitador = { 
-        id: newId, 
-        nombre: nombreCompleto, 
-        correo: person.email ?? created.email ?? payload.email, 
-        telefono: person.phone ?? created.phone ?? payload.phone, 
-        stps: created.stps ?? payload.stps 
-      };
-      
-      setCapacitadores(prev => [nuevo, ...prev]);
-      setCoursesMap(prev => ({ ...prev, [newId]: [] }));
-      setTrainerRawMap(prev => ({ ...prev, [newId]: created }));
-      
       showNotification({ title: 'Añadido', message: 'Capacitador creado correctamente', color: 'green' });
+      
+      // Refrescar lista completa desde el backend para obtener el ID correcto y todos los datos actualizados
+      await fetchTrainers();
+      
     } catch (e: any) {
+      console.error('Error creando capacitador:', e);
       const errorMsg = e?.message ?? 'No se pudo crear el capacitador';
       showNotification({ title: 'Error', message: errorMsg, color: 'red' });
     } finally {
