@@ -280,14 +280,39 @@ export function CursosPage() {
 
     try {
       const created = await BasicPetition<any>({ endpoint: '/trainer', method: 'POST', data: payload, showNotifications: false });
-      const newIdRaw = created && (created._id ?? created.id) ? (created._id ?? created.id) : Date.now();
-      const newId = String(newIdRaw);
-      const nuevo: Capacitador = { id: newId, nombre: (created.name ?? payload.name) || '', correo: payload.email, telefono: payload.phone, stps: payload.stps };
+      
+      // Validar que el backend devolvió un ID válido
+      if (!created || (!created._id && !created.id)) {
+        throw new Error('El backend no devolvió un ID válido para el capacitador');
+      }
+      
+      const newId = String(created._id ?? created.id);
+      
+      // Construir nombre completo usando certificate_person o campos directos
+      const person = created.certificate_person ?? created.certificate_person_id ?? created;
+      const nameParts = [
+        person.f_surname ?? created.f_surname ?? payload.f_surname,
+        person.s_surname ?? created.s_surname ?? payload.s_surname,
+        person.name ?? created.name ?? payload.name
+      ].filter(Boolean);
+      const nombreCompleto = nameParts.length ? nameParts.join(' ') : payload.name;
+      
+      const nuevo: Capacitador = { 
+        id: newId, 
+        nombre: nombreCompleto, 
+        correo: person.email ?? created.email ?? payload.email, 
+        telefono: person.phone ?? created.phone ?? payload.phone, 
+        stps: created.stps ?? payload.stps 
+      };
+      
       setCapacitadores(prev => [nuevo, ...prev]);
       setCoursesMap(prev => ({ ...prev, [newId]: [] }));
+      setTrainerRawMap(prev => ({ ...prev, [newId]: created }));
+      
       showNotification({ title: 'Añadido', message: 'Capacitador creado correctamente', color: 'green' });
     } catch (e: any) {
-      showNotification({ title: 'Error', message: 'No se pudo crear el capacitador', color: 'red' });
+      const errorMsg = e?.message ?? 'No se pudo crear el capacitador';
+      showNotification({ title: 'Error', message: errorMsg, color: 'red' });
     } finally {
       setOpenAddCap(false);
       capForm.reset();
