@@ -704,15 +704,20 @@ export function ConstanciasAdminPage() {
                           </div>
                           {(() => {
                             // Precomputar conteo de fechas de inicio y rangos para detectar conflictos entre cursos del mismo usuario
+                            // Solo aplicar si este cursante tiene múltiples cursos (g.indices.length > 1)
+                            const hasMultipleCourses = g.indices.length > 1;
                             const startCounts: Record<string, number> = {};
                             const ranges: Array<{ start: string; end: string }> = [];
-                            g.indices.forEach((ix2) => {
-                              const it2 = selectedRowUsers[ix2] ?? {};
-                              const s = String(it2.fechaInicio ?? '').trim();
-                              const e = String(it2.fechaFin ?? '').trim();
-                              if (s) startCounts[s] = (startCounts[s] ?? 0) + 1;
-                              ranges.push({ start: s, end: e });
-                            });
+                            
+                            if (hasMultipleCourses) {
+                              g.indices.forEach((ix2) => {
+                                const it2 = selectedRowUsers[ix2] ?? {};
+                                const s = String(it2.fechaInicio ?? '').trim();
+                                const e = String(it2.fechaFin ?? '').trim();
+                                if (s) startCounts[s] = (startCounts[s] ?? 0) + 1;
+                                ranges.push({ start: s, end: e });
+                              });
+                            }
 
                             const parseYmd = (s: string) => {
                               if (!s) return null;
@@ -737,16 +742,19 @@ export function ConstanciasAdminPage() {
                               const inicio = String(item.fechaInicio ?? '').trim();
                               const fin = String(item.fechaFin ?? '').trim();
 
-                              // mismo inicio repetido
-                              const sameStartCount = inicio ? (startCounts[inicio] ?? 0) : 0;
-                              let overlaps = false;
-                              for (let j = 0; j < ranges.length; j++) {
-                                if (j === ci) continue;
-                                const r = ranges[j];
-                                if (rangesOverlap(inicio, fin, r.start, r.end)) { overlaps = true; break; }
+                              // Solo detectar conflictos si hay múltiples cursos para este cursante
+                              let isConflict = false;
+                              if (hasMultipleCourses) {
+                                // mismo inicio repetido
+                                const sameStartCount = inicio ? (startCounts[inicio] ?? 0) : 0;
+                                let overlaps = false;
+                                for (let j = 0; j < ranges.length; j++) {
+                                  if (j === ci) continue;
+                                  const r = ranges[j];
+                                  if (rangesOverlap(inicio, fin, r.start, r.end)) { overlaps = true; break; }
+                                }
+                                isConflict = (sameStartCount > 1) || overlaps;
                               }
-
-                              const isConflict = (sameStartCount > 1) || overlaps;
 
                               return (
                                 <div key={String(ci) + '_' + String(ix)} style={{ display: 'flex', gap: 12, alignItems: 'center', backgroundColor: isConflict ? '#fff6f6' : undefined, padding: isConflict ? '6px 8px' : undefined, borderRadius: isConflict ? 6 : undefined }} title={isConflict ? 'Conflicto de fechas: este cursante tiene otro curso en la misma fecha o con rangos solapados' : undefined}>
@@ -772,7 +780,7 @@ export function ConstanciasAdminPage() {
         </div>
 
         {(() => {
-          // Detectar si hay algún conflicto de fechas en todos los cursantes
+          // Detectar si hay algún conflicto de fechas en cursantes con múltiples cursos
           let hasAnyConflict = false;
           const groupedByName: Record<string, number[]> = {};
           selectedRowUsers.forEach((u, ix) => {
@@ -782,7 +790,9 @@ export function ConstanciasAdminPage() {
           });
 
           Object.values(groupedByName).forEach((indices) => {
+            // Solo verificar conflictos si este cursante tiene múltiples cursos
             if (indices.length <= 1) return;
+            
             const startCounts: Record<string, number> = {};
             const ranges: Array<{ start: string; end: string }> = [];
             indices.forEach((ix2) => {
@@ -830,7 +840,7 @@ export function ConstanciasAdminPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', backgroundColor: '#fff6f6', border: '1px solid #ff6b6b', borderRadius: 6, marginTop: 12, color: '#c92a2a' }}>
               <FaExclamationTriangle size={20} style={{ flexShrink: 0 }} />
               <Text size="sm" style={{ color: '#c92a2a', fontWeight: 500 }}>
-                Hay cursos con conflicto de fechas (misma fecha o rangos solapados). Revisa los cursos marcados en rojo.
+                Hay cursantes con múltiples cursos que tienen conflicto de fechas (misma fecha o rangos solapados). Revisa los cursos marcados en rojo.
               </Text>
             </div>
           ) : null;
