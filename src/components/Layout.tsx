@@ -23,7 +23,7 @@ export function AppLayout() {
             size="sm"
           />
           <img
-            src="/logo.png"
+            src="logo.png"
             alt="DoGroup"
             style={{ height: 50, width: 'auto' }}
           />

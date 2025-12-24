@@ -76,7 +76,7 @@ export function Login() {
         <LoadingOverlay visible={loading} />
 
         <form onSubmit={form.onSubmit(handleSubmit)}>
-          <img src="/logo.png" alt="DO-GROUP Logo" className="logo login-form-logo" />
+          <img src="logo.png" alt="DO-GROUP Logo" className="logo login-form-logo" />
           <TextInput
             label="Email"
             placeholder="correo@email.com"
