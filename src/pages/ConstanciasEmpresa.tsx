@@ -101,14 +101,9 @@ export function ConstanciasEmpresaPage() {
         }
         return false;
     };
-    // preview/debug del payload antes de enviar
-    const [previewOpen, setPreviewOpen] = useState(false);
-    const [previewPayload, setPreviewPayload] = useState<any>(null);
-    const [previewSending, setPreviewSending] = useState(false);
-    // Preview y envío para petición grupal
-    const [groupPreviewOpen, setGroupPreviewOpen] = useState(false);
-    const [groupPreviewPayload, setGroupPreviewPayload] = useState<any>(null);
-    const [groupPreviewSending, setGroupPreviewSending] = useState(false);
+    // estados de envío
+    const [sending, setSending] = useState(false);
+    const [groupSending, setGroupSending] = useState(false);
 
     // (anterior helper toYmd removed — usamos inputToIso para enviar ISO completo requerido por backend)
 
@@ -134,13 +129,13 @@ export function ConstanciasEmpresaPage() {
         return null;
     };
 
-    const sendPreviewPayload = async () => {
-        if (!previewPayload) return;
-        setPreviewSending(true);
+    const sendIndividualPayload = async (payload: any) => {
+        if (!payload) return;
+        setSending(true);
         try {
             // crear la constancia: primero enviar una copia sanitizada (sin cursos)
-            const sanitized = JSON.parse(JSON.stringify(previewPayload));
-            const preserved = JSON.parse(JSON.stringify(previewPayload));
+            const sanitized = JSON.parse(JSON.stringify(payload));
+            const preserved = JSON.parse(JSON.stringify(payload));
   
             const createdAny: any = await BasicPetition({ endpoint: '/certificate', method: 'POST', data: sanitized, showNotifications: false });
             const certId = createdAny?._id ?? createdAny?.id ?? (Array.isArray(createdAny) && createdAny.length > 0 ? (createdAny[0]?._id ?? createdAny[0]?.id) : null);
@@ -174,7 +169,6 @@ export function ConstanciasEmpresaPage() {
                 showNotification({ title: 'Advertencia', message: 'Constancia creada pero no se pudieron asociar los cursos', color: 'yellow' });
             }
 
-            setPreviewOpen(false);
             setOpenedIndividual(false);
             // limpiar formulario individual y estados relacionados
             individualForm.reset();
@@ -185,23 +179,22 @@ export function ConstanciasEmpresaPage() {
             setSelectedTrainerId(null);
             setParsedXlsxObject(null);
 
-            const idToUse = previewPayload?.certificate_user_id ?? localStorage.getItem('mi_app_user_id') ?? null;
+            const idToUse = payload?.certificate_user_id ?? localStorage.getItem('mi_app_user_id') ?? null;
             if (idToUse) void fetchCertificates(idToUse);
-            setPreviewPayload(null);
         } catch (err) {
-            showNotification({ title: 'Error', message: 'No se pudo crear la constancia (preview)', color: 'red' });
+            showNotification({ title: 'Error', message: 'No se pudo crear la constancia', color: 'red' });
         } finally {
-            setPreviewSending(false);
+            setSending(false);
         }
     };
 
-    const sendGroupPayload = async () => {
-        if (!groupPreviewPayload) return;
-        setGroupPreviewSending(true);
+    const sendGroupPayload = async (payload: any) => {
+        if (!payload) return;
+        setGroupSending(true);
         try {
             // preparar payload: sanitized (sin cursos) y preserved (con cursos) para bulk
-            const preserved = JSON.parse(JSON.stringify(groupPreviewPayload));
-            const sanitized = JSON.parse(JSON.stringify(groupPreviewPayload));
+            const preserved = JSON.parse(JSON.stringify(payload));
+            const sanitized = JSON.parse(JSON.stringify(payload));
             try {
                 const cursantes = sanitized.xlsx_object?.cursantes ?? [];
                 if (Array.isArray(cursantes)) for (const c of cursantes) { if (c && c.cursos) delete c.cursos; }
@@ -236,7 +229,6 @@ export function ConstanciasEmpresaPage() {
                 showNotification({ title: 'Advertencia', message: 'Petición creada pero no se pudieron asociar los cursos', color: 'yellow' });
             }
 
-            setGroupPreviewOpen(false);
             setOpened(false);
             // limpiar formulario grupal y estados relacionados
             form.reset();
@@ -245,13 +237,12 @@ export function ConstanciasEmpresaPage() {
             setCourseValueMap({});
             setCoursesDisabled(true);
             setSelectedTrainerId(null);
-            const idToUse = groupPreviewPayload?.certificate_user_id ?? localStorage.getItem('mi_app_user_id') ?? null;
+            const idToUse = payload?.certificate_user_id ?? localStorage.getItem('mi_app_user_id') ?? null;
             if (idToUse) void fetchCertificates(idToUse);
-            setGroupPreviewPayload(null);
         } catch (err) {
             showNotification({ title: 'Error', message: 'No se pudo crear la petición grupal', color: 'red' });
         } finally {
-            setGroupPreviewSending(false);
+            setGroupSending(false);
         }
     };
 
@@ -719,9 +710,8 @@ export function ConstanciasEmpresaPage() {
                                 status: 'PENDIENTE',
                             };
 
-                            // En lugar de enviar inmediatamente, abrir preview para revisión
-                            setGroupPreviewPayload(payload);
-                            setGroupPreviewOpen(true);
+                            // Enviar directamente
+                            await sendGroupPayload(payload);
                         }}
                     >
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -813,23 +803,13 @@ export function ConstanciasEmpresaPage() {
                             />
 
                                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                                    <Button type="submit" disabled={isSubmitDisabled()} style={{ background: isSubmitDisabled() ? '#cccccc' : 'var(--olive-green)' }}>
+                                    <Button type="submit" disabled={isSubmitDisabled() || groupSending} loading={groupSending} style={{ background: (isSubmitDisabled() || groupSending) ? '#cccccc' : 'var(--olive-green)' }}>
                                         Enviar
                                     </Button>
                                 </div>
 
                         </div>
                     </form>
-                </Modal>
-                {/* Group preview modal */}
-                <Modal opened={groupPreviewOpen} onClose={() => setGroupPreviewOpen(false)} title="Preview petición grupal" size="lg" centered>
-                    <div style={{ maxHeight: '60vh', overflow: 'auto' }}>
-                        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12 }}>{groupPreviewPayload ? JSON.stringify(groupPreviewPayload, null, 2) : 'No payload'}</pre>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
-                        <Button variant="default" onClick={() => setGroupPreviewOpen(false)} disabled={groupPreviewSending}>Cancelar</Button>
-                        <Button style={{ background: 'var(--olive-green)' }} onClick={() => void sendGroupPayload()} loading={groupPreviewSending}>Confirmar y enviar</Button>
-                    </div>
                 </Modal>
 
                 {/* MODAL INDIVIDUAL */}
@@ -919,9 +899,8 @@ export function ConstanciasEmpresaPage() {
                                 status: 'PENDIENTE',
                             } as any;
 
-                            // en lugar de enviar directamente, abrir preview para debug
-                            setPreviewPayload(payload);
-                            setPreviewOpen(true);
+                            // Enviar directamente
+                            await sendIndividualPayload(payload);
                         }}
                     >
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1088,21 +1067,11 @@ export function ConstanciasEmpresaPage() {
                             />
 
                             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                <Button type="submit" disabled={isIndividualSubmitDisabled()} style={{ background: isIndividualSubmitDisabled() ? '#cccccc' : 'var(--olive-green)' }}>Crear</Button>
+                                <Button type="submit" disabled={isIndividualSubmitDisabled() || sending} loading={sending} style={{ background: (isIndividualSubmitDisabled() || sending) ? '#cccccc' : 'var(--olive-green)' }}>Crear</Button>
                             </div>
                         </div>
                     </form>
                 </Modal>
-            {/* Preview modal usado para debug del payload individual */}
-            <Modal opened={previewOpen} onClose={() => setPreviewOpen(false)} title="Preview payload" size="lg" centered>
-                <div style={{ maxHeight: '60vh', overflow: 'auto' }}>
-                    <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12 }}>{previewPayload ? JSON.stringify(previewPayload, null, 2) : 'No payload'}</pre>
-                </div>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
-                    <Button variant="default" onClick={() => setPreviewOpen(false)} disabled={previewSending}>Cancelar</Button>
-                    <Button style={{ background: 'var(--olive-green)' }} onClick={() => void sendPreviewPayload()} loading={previewSending}>Confirmar y enviar</Button>
-                </div>
-            </Modal>
         </Container>
     );
 }

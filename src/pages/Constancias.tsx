@@ -53,9 +53,6 @@ export function ConstanciasAdminPage() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(5);
 
-  // preview confirm
-  const [verifyPreviewOpen, setVerifyPreviewOpen] = useState(false);
-  const [verifyPreviewPayload, setVerifyPreviewPayload] = useState<any>(null);
   const [verifySending, setVerifySending] = useState(false);
 
   useEffect(() => {
@@ -272,8 +269,8 @@ export function ConstanciasAdminPage() {
     setSelectedRowUsers((prev) => prev.map((u) => ({ ...u, [field]: value })));
   };
 
-  // Confirmar validación: construir patch + bulk preview
-  const handleOpenPreview = () => {
+  // Ejecutar validación directamente
+  const handleValidate = async () => {
     const id = selectedCertificate?.id ?? selectedCertificate?.id ?? undefined;
     if (!id) return;
     const prevRaw = certificateRawMap[id] ?? {};
@@ -317,50 +314,20 @@ export function ConstanciasAdminPage() {
       status: 'APROBADO',
     };
 
-    // Construir bulk entries
-    const entries: any[] = [];
-    try {
-      const associations = Array.isArray(prevRaw?.certificate_courses) ? prevRaw.certificate_courses : [];
-      const seen = new Set<string>();
-      const certIdVal = prevRaw._id ?? prevRaw.id ?? selectedCertificate?.id ?? undefined;
-      for (const u of selectedRowUsers) {
-        try {
-          const uname = (u.cursoInteres ?? '').toString().trim();
-          const match = associations.find((a: any) => {
-            const aname = (a?.course?.name ?? a?.course_name ?? '').toString().trim();
-            return aname && uname && aname === uname;
-          });
-          const courseId = match?.course?._id ?? match?.course_id ?? match?.course?.id ?? match?._id ?? match?.id ?? undefined;
-          const fallbackCourseId = (u as any)?.course_id ?? (u as any)?.curso_id ?? undefined;
-          const finalCourseId = courseId ?? fallbackCourseId ?? undefined;
-          if (!finalCourseId) continue;
-          const sIso = toIso(u.fechaInicio) ?? undefined;
-          const eIso = toIso(u.fechaFin) ?? undefined;
-          if (!sIso || !eIso) continue;
-          const key = `${finalCourseId}|${sIso}|${eIso}`;
-          if (!seen.has(key)) { seen.add(key); entries.push({ certificate_id: certIdVal, course_id: finalCourseId, start: sIso, end: eIso }); }
-        } catch (inner) { }
-      }
-    } catch (e) { }
-
-    const bulkPayload = { data: entries };
-    const previewPayload = { ...patchData, bulk_entries: bulkPayload };
-    setVerifyPreviewPayload(previewPayload);
-    setVerifyPreviewOpen(true);
+    // Ejecutar directamente
+    await handleConfirmApply(patchData);
   };
 
   // Confirm and apply
-  const handleConfirmApply = async () => {
-    if (!verifyPreviewPayload || !selectedCertificate?.id) return;
+  const handleConfirmApply = async (patchData: any) => {
+    if (!patchData || !selectedCertificate?.id) return;
     setVerifySending(true);
     try {
       const id = selectedCertificate.id;
-      const patchData = verifyPreviewPayload;
 
       // optimistic local update
       setCertificateRawMap((prev) => ({ ...prev, [id]: { ...(prev[id] ?? {}), status: 'APROBADO', xlsx_object: patchData.xlsx_object, legal_representative: patchData.legal_representative, workers_representative: patchData.workers_representative } }));
       setRows((prev) => prev.map((r) => (r.id === id ? { ...r, fecha: String(patchData.course_period) } : r)));
-      setVerifyPreviewOpen(false);
       setEditModalOpened(false);
 
       const prevRaw = certificateRawMap[id] ?? {};
@@ -1102,18 +1069,8 @@ export function ConstanciasAdminPage() {
 
         <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 12 }}>
           <div style={{ display: 'flex', gap: 12 }}>
-            <Button onClick={() => handleOpenPreview()} style={{ background: 'var(--olive-green)', color: 'white' }}>Validar</Button>
+            <Button onClick={async () => await handleValidate()} loading={verifySending} disabled={verifySending} style={{ background: verifySending ? '#cccccc' : 'var(--olive-green)', color: 'white' }}>Validar</Button>
           </div>
-        </div>
-      </Modal>
-
-      <Modal opened={verifyPreviewOpen} onClose={() => setVerifyPreviewOpen(false)} title="Confirmar validación" centered size={isMobile ? '90%' : 'lg'}>
-        <div style={{ maxHeight: '60vh', overflow: 'auto' }}>
-          <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12 }}>{verifyPreviewPayload ? JSON.stringify(verifyPreviewPayload, null, 2) : 'No payload'}</pre>
-        </div>
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
-          <Button variant="default" onClick={() => setVerifyPreviewOpen(false)} disabled={verifySending}>Cancelar</Button>
-          <Button style={{ background: 'var(--olive-green)', color: 'white' }} loading={verifySending} onClick={async () => { await handleConfirmApply(); }}>Confirmar y aplicar</Button>
         </div>
       </Modal>
     </Container>
