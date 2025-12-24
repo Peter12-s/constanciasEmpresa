@@ -1,0 +1,252 @@
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+
+/* Paleta de colores específica del proyecto */
+:root {
+  --gray-dark: #3c3c3c;
+  --olive-green: #a1a23b;
+  --navy-blue: #0e2b56;
+  --red-dark: #961916;
+  --olive-green: #708238;        /* normal */
+  --olive-green-hover: #8fa857;  /* más claro */
+  /* Mantine theme variables (harmonized with project palette) */
+  --mantine-primary-color: var(--navy-blue);
+  --mantine-primary-color-hover: #0b223f; /* darker navy for hover */
+  --mantine-primary-color-light: rgba(14, 43, 86, 0.06);
+  --mantine-primary-color-light-hover: rgba(14, 43, 86, 0.12);
+  --mantine-accent-color: var(--olive-green);
+  --mantine-danger-color: var(--red-dark);
+}
+
+
+/* Fondo degradado verde-azul y posicionamiento para el login */
+:root {
+  --olive-green: #a1a23b;
+  --navy-blue: #0e2b56;
+}
+
+body {
+  background: #ffffff;
+  min-height: 100vh;
+  display: block;
+  position: relative;
+  overflow: auto; /* allow page scrolling */
+  padding: 16px 0px;
+}
+
+
+.app-container {
+  width: 100%;
+  height: 5vh; /* default for most pages */
+  position: fixed;
+  bottom: 0;
+  background: linear-gradient(120deg,
+  var(--olive-green) 33%,
+  var(--navy-blue) 33% 77%,
+  var(--red-dark) 77% 100%
+  );
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Variant used only on the login page to make the area larger */
+
+  /* Botones de acción en las tablas: efecto hover sólo en el elemento bajo el cursor */
+  .action-btn {
+    transition: filter 120ms ease, transform 120ms ease;
+  }
+
+  .action-btn:hover {
+    filter: brightness(0.9);
+  }
+
+  /* Small variant for action buttons used in tables (compact) */
+  .small-action-btn {
+    padding: 4px 8px !important;
+    font-size: 0.75rem !important;
+    min-width: 20px !important;
+    height: 28px !important;
+    line-height: 1 !important;
+    border-radius: 6px !important;
+  }
+
+.app-container--large {
+  height: 45vh;
+}
+
+
+/* Asegurar que el contenedor del login / Paper de Mantine quede por encima */
+.login-container,
+.login-box,
+.mantine-Paper-root {
+  position: relative;
+  z-index: 3; /* ensure login card sits above the app-container */
+}
+
+/* Page wrapper para el login con decor detrás */
+.login-page {
+  min-width: 350px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+
+}
+
+
+
+.login-form-logo {
+  display: block;
+  margin: 0 auto 0.75rem auto;
+  height: 200px;
+  width: auto;
+}
+
+/* Logo usado en el header */
+.app-logo {
+  height: 50px;
+  width: auto;
+  display: inline-block;
+}
+
+/* Estilos del login usando la paleta */
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.login-box {
+  width: 420px;
+  max-width: 95%;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 22px 20px 28px;
+  text-align: center;
+  box-shadow: 0 15px 30px rgba(14, 43, 86, 0.08), 0 8px 18px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(161, 162, 59, 0.06);
+}
+
+/* Inputs de Mantine dentro del login */
+.login-box input,
+.login-box .mantine-TextInput-input,
+.login-box .mantine-PasswordInput-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #d0d3d8;
+  font-size: 0.95rem;
+  background: #fff;
+  transition: border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.login-box input:focus,
+.login-box .mantine-TextInput-input:focus,
+.login-box .mantine-PasswordInput-input:focus {
+  border-color: var(--olive-green);
+  box-shadow: 0 6px 18px rgba(161, 162, 59, 0.18);
+  outline: none;
+}
+
+.login-box .mantine-TextInput-label,
+.login-box .mantine-PasswordInput-label {
+  color: var(--gray-dark);
+}
+
+.login-box button,
+.login-box .mantine-Button-root {
+  background: var(--olive-green) !important;
+  color: #fff !important;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: none;
+  font-size: 1rem;
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgba(161, 162, 59, 0.18);
+  transition: all 0.22s ease;
+}
+
+.login-box button:hover,
+.login-box .mantine-Button-root:hover {
+  background: var(--navy-blue) !important;
+  box-shadow: 0 10px 28px rgba(28, 66, 123, 0.18);
+}
+
+.login-box .mantine-Alert-root {
+  margin-top: 12px;
+}
+
+/* versión móvil */
+@media (max-width: 480px) {
+  .login-box {
+    width: calc(100% - 40px);
+    padding: 18px;
+  }
+
+  .login-decor {
+    width: 92%;
+    height: 180px;
+
+  }
+}
+
+/* For mobile: make the sidebar narrower (55% width) */
+@media (max-width: 768px) {
+  .app-navbar {
+    width: 55% !important;
+    min-width: 0 !important;
+  }
+}
+
+.login-box .mantine-PasswordInput-visibilityToggle {
+  background: #ffffff !important;
+  /* fondo blanco */
+  color: var(--gray-dark) !important;
+  /* icono oscuro por defecto */
+  padding: 6px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+}
+
+/* Asegurar que el svg use el color actual */
+.login-box .mantine-PasswordInput-visibilityToggle .mantine-ActionIcon-icon svg {
+  fill: currentColor;
+  width: 18px;
+  height: 18px;
+}
+
+/* Hover: icono verde oscuro */
+.login-box .mantine-PasswordInput-visibilityToggle:hover {
+  color: var(--olive-green) !important;
+  box-shadow: 0 6px 16px rgba(161, 162, 59, 0.12);
+  background-color: white !important;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
