@@ -279,16 +279,22 @@ export async function generateAndDownloadZipDC3(
   for (const cursante of users) {
     // Permitir overrides específicos por cursante (p. ej. rep_legal, rep_trabajadores, capacitador, curso_interes, fechas)
     const merged = { ...(certificateData ?? {}), ...(cursante.certificate_overrides ?? {}) } as any;
-    // Resolver area_tematica y tipo_firma de forma defensiva: override por cursante > certificateData > certificateData.xlsx_object > fallback
+    
+    // Resolver tipo_firma ANTES de asignar area_tematica para que no sea sobrescrito
+    // Para tipo_firma, priorizar xlsx_object sobre el nivel raíz del certificateData
+    const resolvedTipoFirma = (cursante.certificate_overrides && (cursante.certificate_overrides as any).tipo_firma)
+      ?? (certificateData as any).xlsx_object?.tipo_firma
+      ?? (certificateData as any).tipo_firma
+      ?? 'FISICA';
+    
+    // Resolver area_tematica de forma defensiva: override por cursante > certificateData > certificateData.xlsx_object > fallback
     merged.area_tematica = (cursante.certificate_overrides && (cursante.certificate_overrides as any).area_tematica)
       ?? certificateData.area_tematica
       ?? (certificateData as any).xlsx_object?.area_tematica
       ?? '6000 Seguridad';
-    // Para tipo_firma, priorizar xlsx_object sobre el nivel raíz del certificateData
-    merged.tipo_firma = (cursante.certificate_overrides && (cursante.certificate_overrides as any).tipo_firma)
-      ?? (certificateData as any).xlsx_object?.tipo_firma
-      ?? (certificateData as any).tipo_firma
-      ?? 'FISICA';
+    
+    // Asignar tipo_firma resuelto AL FINAL para que no sea sobrescrito
+    merged.tipo_firma = resolvedTipoFirma;
     
     console.log('Tipo de firma resuelto:', {
       override: cursante.certificate_overrides && (cursante.certificate_overrides as any).tipo_firma,
