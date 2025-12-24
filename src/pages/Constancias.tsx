@@ -179,7 +179,7 @@ export function ConstanciasAdminPage() {
         ocupacion_especifica: ocupacionCanon ?? (rawOcc || ''),
         repLegal: raw?.legal_representative ?? "",
         repTrabajadores: raw?.workers_representative ?? "",
-        tipoFirma: c.tipo_firma ?? "FISICA",
+        tipoFirma: raw?.xlsx_object?.tipo_firma ?? c.tipo_firma ?? "FISICA",
         capacitador: raw?.trainer_fullname ?? "",
       };
 
