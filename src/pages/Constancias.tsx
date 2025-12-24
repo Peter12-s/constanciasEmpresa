@@ -624,7 +624,7 @@ export function ConstanciasAdminPage() {
           { text: "" },
         ]);
       });
-      const logoDataUrl = await imageUrlToDataUrl("/logo.png");
+      const logoDataUrl = await imageUrlToDataUrl("logo.png");
 
       const docDefinition: any = {
         pageSize: "A4",
