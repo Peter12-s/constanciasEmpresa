@@ -564,7 +564,7 @@ export function ConstanciasAdminPage() {
       } catch (e) { /* ignore */ }
 
       showNotification({ title: 'Generando...', message: 'Generando ZIP con constancias.', color: 'blue', loading: true });
-      await generateAndDownloadZipDC3(certificateData, cursantes, '/logo.png', `constancias_${certificateData.id}.zip`);
+      await generateAndDownloadZipDC3(certificateData, cursantes, 'logo.png', `constancias_${certificateData.id}.zip`);
     } catch (err: any) {
       const serverData = err?.data ?? err?.originalError?.response?.data ?? err?.response?.data ?? null;
       const serverMessage = serverData ? (typeof serverData === 'string' ? serverData : JSON.stringify(serverData)) : null;
