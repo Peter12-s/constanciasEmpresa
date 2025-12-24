@@ -423,9 +423,10 @@ export async function generateAndDownloadZipDC3(
       } as DC3CertificateData;
 
       // Construir QR específico para este curso (añadir course_id como query param si existe)
+      // Como usamos HashRouter, necesitamos incluir el # en la URL
       const qrUrl = courseId
-        ? `${finalBase}/validar/${perCert.id}/${cursante.curp}?course_id=${encodeURIComponent(String(courseId))}`
-        : `${finalBase}/validar/${perCert.id}/${cursante.curp}`;
+        ? `${finalBase}/#/validar/${perCert.id}/${cursante.curp}?course_id=${encodeURIComponent(String(courseId))}`
+        : `${finalBase}/#/validar/${perCert.id}/${cursante.curp}`;
       const qrDataUrl = await generateQrDataUrl(qrUrl);
 
       // Contenido para UN solo usuario y UN curso
