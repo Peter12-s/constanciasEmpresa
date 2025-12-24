@@ -25,6 +25,7 @@ type Row = {
     fecha: string;
     estado: 'pendiente' | 'aprobada';
     courses?: Array<{ course_name: string; start: string; end: string }>;
+    cursantes?: Array<{ nombre: string; curp: string; puesto_trabajo: string; ocupacion_especifica: string }>;
 };
 
 export function ConstanciasEmpresaPage() {
@@ -351,6 +352,18 @@ export function ConstanciasEmpresaPage() {
                 );
             }
         },
+        {
+            accessor: 'cursantes',
+            label: 'Cursante',
+            render: (r) => {
+                const cursantes = r.cursantes ?? [];
+                if (cursantes.length === 0) return '';
+                if (cursantes.length === 1) {
+                    return cursantes[0].nombre || '';
+                }
+                return 'Grupal';
+            }
+        },
     
         {
             accessor: 'estado',
@@ -418,6 +431,14 @@ export function ConstanciasEmpresaPage() {
                 const allCourseNames = coursesArr.length > 0 ? coursesArr.map(c => c.course_name).filter(Boolean).join(', ') : '';
                 const singlePeriod = coursesArr.length === 1 ? `${coursesArr[0].start} / ${coursesArr[0].end}` : '';
 
+                // Extraer cursantes del xlsx_object si existe
+                const cursantesArr = Array.isArray(it.xlsx_object?.cursantes) ? it.xlsx_object.cursantes.map((c: any) => ({
+                    nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '',
+                    curp: c.curp ?? '',
+                    puesto_trabajo: c.puesto_trabajo ?? c.puestoTrabajo ?? c.puesto ?? '',
+                    ocupacion_especifica: c.ocupacion_especifica ?? c.ocupacionEspecifica ?? c.ocupacion ?? '',
+                })) : [];
+
                 return {
                     id: it._id,
                     capacitador: it.trainer_fullname ?? '',
@@ -426,6 +447,7 @@ export function ConstanciasEmpresaPage() {
                     fecha: it.course_period ?? singlePeriod ?? '',
                     estado: (String(it.status).toUpperCase() === 'PENDIENTE') ? 'pendiente' : 'aprobada',
                     courses: coursesArr,
+                    cursantes: cursantesArr,
                 } as Row;
             }));
             setRows(rowsWithCourses);

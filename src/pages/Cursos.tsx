@@ -118,7 +118,7 @@ export function CursosPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
-  const capForm = useForm({ initialValues: { name: "", f_surname: "", s_surname: "", correo: "", telefono: "", stps: "", specialty: "", firma: null as File | null } });
+  const capForm = useForm({ initialValues: { name: "", f_surname: "", s_surname: "", correo: "", telefono: "", stps: "", firma: null as File | null } });
   const editCapForm = useForm({ initialValues: { name: "", f_surname: "", s_surname: "", correo: "", telefono: "", stps: "", firma: null } });
   const [uploadInProgress, setUploadInProgress] = useState(false);
   const [uploadedSign, setUploadedSign] = useState<string | null>(null);
@@ -270,7 +270,7 @@ export function CursosPage() {
     const payload = {
       stps: capForm.values.stps || '',
       sign: uploadedSign,
-      specialty: capForm.values.specialty || '',
+      specialty: '',
       name: capForm.values.name || '',
       f_surname: capForm.values.f_surname || '',
       s_surname: capForm.values.s_surname || '',
@@ -671,13 +671,6 @@ export function CursosPage() {
             mt="sm"
             {...capForm.getInputProps("stps")}
             onChange={(e) => capForm.setFieldValue('stps', String((e.target as HTMLInputElement).value || '').toUpperCase())}
-            style={{ textTransform: 'uppercase' }}
-          />
-          <TextInput
-            label="Especialidad"
-            mt="sm"
-            {...capForm.getInputProps("specialty")}
-            onChange={(e) => capForm.setFieldValue('specialty', String((e.target as HTMLInputElement).value || '').toUpperCase())}
             style={{ textTransform: 'uppercase' }}
           />
 
