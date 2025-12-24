@@ -111,18 +111,37 @@ export default function ValidarPage() {
   let fecha = certificate?.course_period ?? `${cursante?.fecha_inicio ?? ''} / ${cursante?.fecha_fin ?? ''}`;
   let instructor = cursante?.capacitador ?? certificate?.trainer_fullname ?? '';
   
+  console.log('=== INICIO BÚSQUEDA DE CURSO ===');
+  console.log('courseIdParam:', courseIdParam);
+  console.log('certificate_courses:', certificate?.certificate_courses);
+  
   // Buscar el curso específico en certificate_courses usando el course_id del QR
   let matched: any = null;
   try {
     if (courseIdParam && Array.isArray(certificate?.certificate_courses)) {
-      // Buscar por course._id (MongoDB ID) o course_id
+      // Buscar por course._id (MongoDB ID) o course_id (ambos deberían funcionar)
       matched = (certificate.certificate_courses as any[]).find((it: any) => {
-        const courseId = it.course?._id ?? it.course_id ?? it.course?.id ?? '';
-        return String(courseId) === String(courseIdParam);
+        const courseMongoDB = it.course?._id ?? '';
+        const courseIdField = it.course_id ?? '';
+        const courseIdAlt = it.course?.id ?? '';
+        
+        console.log('Comparando item:', {
+          courseMongoDB,
+          courseIdField,
+          courseIdAlt,
+          conParametro: courseIdParam,
+          match1: String(courseMongoDB) === String(courseIdParam),
+          match2: String(courseIdField) === String(courseIdParam),
+          match3: String(courseIdAlt) === String(courseIdParam)
+        });
+        
+        return String(courseMongoDB) === String(courseIdParam) || 
+               String(courseIdField) === String(courseIdParam) ||
+               String(courseIdAlt) === String(courseIdParam);
       });
       
       if (matched) {
-        console.log('Curso encontrado para course_id:', courseIdParam, matched);
+        console.log('✅ Curso encontrado:', matched);
         curso = matched.course?.name ?? matched.course_name ?? matched.name ?? curso;
         duracion = matched.course?.duration ?? matched.duration ?? duracion;
         
@@ -134,13 +153,19 @@ export default function ValidarPage() {
         fecha = (sN || eN) ? `${sN || ''}${sN && eN ? ' / ' : ''}${eN || ''}` : fecha;
         
         instructor = matched.trainer_fullname ?? matched.capacitador ?? certificate?.trainer_fullname ?? instructor;
+        
+        console.log('Valores finales:', { curso, duracion, fecha, instructor });
       } else {
-        console.warn('No se encontró curso con course_id:', courseIdParam, 'en certificate_courses:', certificate.certificate_courses);
+        console.error('❌ No se encontró curso con course_id:', courseIdParam);
       }
+    } else {
+      console.warn('Sin courseIdParam o certificate_courses no es array');
     }
   } catch (e) {
     console.error('Error al buscar curso específico:', e);
   }
+  
+  console.log('=== FIN BÚSQUEDA ===');
 
   // Valores por defecto si no se encontró asociación específica
   curso = curso || 'No especificado';
