@@ -937,7 +937,7 @@ export function ConstanciasEmpresaPage() {
                                         const trainerCourses = Array.isArray(trainer?.trainer_courses) ? trainer.trainer_courses : [];
                                         
                                         // preferir course._id (GUID) -> course.id -> course.course_id
-                                        const courseOpts = trainerCourses
+                                        const courseOptsRaw = trainerCourses
                                             .filter((tc: any) => tc && tc.course) // filtrar cursos inválidos
                                             .map((tc: any) => {
                                                 const courseId = tc.course?._id ?? tc.course?.id ?? tc.course?.course_id ?? tc.course_id ?? '';
@@ -949,13 +949,21 @@ export function ConstanciasEmpresaPage() {
                                             })
                                             .filter((opt: any) => opt.value); // eliminar opciones sin ID
                                         
+                                        // Eliminar duplicados usando Set
+                                        const seen = new Set<string>();
+                                        const courseOpts = courseOptsRaw.filter((opt: any) => {
+                                            if (seen.has(opt.value)) return false;
+                                            seen.add(opt.value);
+                                            return true;
+                                        });
+                                        
                                         const map: Record<string, string | number> = {};
                                         for (const tc of trainerCourses) {
                                             if (!tc || !tc.course) continue;
                                             const preferred = tc.course?._id ?? tc.course?.id ?? tc.course?.course_id ?? tc.course_id ?? '';
                                             if (!preferred) continue;
                                             const value = String(preferred);
-                                            map[value] = preferred;
+                                            if (!map[value]) map[value] = preferred;
                                         }
                                         setCourseValueMap(map);
                                         
