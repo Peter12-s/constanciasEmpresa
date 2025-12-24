@@ -15,6 +15,7 @@ import { showNotification } from "@mantine/notifications";
 import { BasicPetition } from "../core/petition";
 import { ResponsiveDataTable, type Column } from "../components/ResponsiveDataTable";
 import { generateAndDownloadZipDC3, type DC3User, type DC3CertificateData } from "../components/createPDF";
+import { FaExclamationTriangle } from "react-icons/fa";
 
 // Minimal types used in this file
 type Row = {
@@ -769,6 +770,71 @@ export function ConstanciasAdminPage() {
             );
           })()}
         </div>
+
+        {(() => {
+          // Detectar si hay algún conflicto de fechas en todos los cursantes
+          let hasAnyConflict = false;
+          const groupedByName: Record<string, number[]> = {};
+          selectedRowUsers.forEach((u, ix) => {
+            const name = String(u.nombre ?? '').trim();
+            if (!groupedByName[name]) groupedByName[name] = [];
+            groupedByName[name].push(ix);
+          });
+
+          Object.values(groupedByName).forEach((indices) => {
+            if (indices.length <= 1) return;
+            const startCounts: Record<string, number> = {};
+            const ranges: Array<{ start: string; end: string }> = [];
+            indices.forEach((ix2) => {
+              const it2 = selectedRowUsers[ix2] ?? {};
+              const s = String(it2.fechaInicio ?? '').trim();
+              const e = String(it2.fechaFin ?? '').trim();
+              if (s) startCounts[s] = (startCounts[s] ?? 0) + 1;
+              ranges.push({ start: s, end: e });
+            });
+
+            const parseYmd = (s: string) => {
+              if (!s) return null;
+              const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+              if (!m) return null;
+              return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+            };
+
+            const rangesOverlap = (aStart: string, aEnd: string, bStart: string, bEnd: string) => {
+              const as = parseYmd(aStart);
+              const bs = parseYmd(bStart);
+              if (!as || !bs) return false;
+              const ae = parseYmd(aEnd) ?? as;
+              const be = parseYmd(bEnd) ?? bs;
+              return !(ae!.getTime() < bs.getTime() || be!.getTime() < as.getTime());
+            };
+
+            indices.forEach((ix, ci) => {
+              const item = selectedRowUsers[ix];
+              const inicio = String(item.fechaInicio ?? '').trim();
+              const fin = String(item.fechaFin ?? '').trim();
+              const sameStartCount = inicio ? (startCounts[inicio] ?? 0) : 0;
+              let overlaps = false;
+              for (let j = 0; j < ranges.length; j++) {
+                if (j === ci) continue;
+                const r = ranges[j];
+                if (rangesOverlap(inicio, fin, r.start, r.end)) { overlaps = true; break; }
+              }
+              if ((sameStartCount > 1) || overlaps) {
+                hasAnyConflict = true;
+              }
+            });
+          });
+
+          return hasAnyConflict ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', backgroundColor: '#fff6f6', border: '1px solid #ff6b6b', borderRadius: 6, marginTop: 12, color: '#c92a2a' }}>
+              <FaExclamationTriangle size={20} style={{ flexShrink: 0 }} />
+              <Text size="sm" style={{ color: '#c92a2a', fontWeight: 500 }}>
+                Hay cursos con conflicto de fechas (misma fecha o rangos solapados). Revisa los cursos marcados en rojo.
+              </Text>
+            </div>
+          ) : null;
+        })()}
 
         <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 12 }}>
           <div style={{ display: 'flex', gap: 12 }}>
