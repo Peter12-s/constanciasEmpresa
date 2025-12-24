@@ -16,6 +16,7 @@ import { BasicPetition } from "../core/petition";
 import { ResponsiveDataTable, type Column } from "../components/ResponsiveDataTable";
 import { generateAndDownloadZipDC3, type DC3User, type DC3CertificateData } from "../components/createPDF";
 import { FaExclamationTriangle } from "react-icons/fa";
+import pdfMake from "pdfmake/build/pdfmake";
 
 // Minimal types used in this file
 type Row = {
@@ -43,7 +44,7 @@ export function ConstanciasAdminPage() {
   const [repTrabAll, setRepTrabAll] = useState('');
   const [areaTematicaAll, setAreaTematicaAll] = useState('6000 Seguridad');
   const [capacitadorAll, setCapacitadorAll] = useState('');
-  const [cursoInteresAll, setCursoInteresAll] = useState('');
+  
   const [fechaInicioAll, setFechaInicioAll] = useState('');
   const [fechaFinAll, setFechaFinAll] = useState('');
 
@@ -156,7 +157,7 @@ export function ConstanciasAdminPage() {
     ];
     const removeDiacritics = (s: string) => s.normalize('NFD').replace(/[^\w\s-]/g, '');
 
-    cursantes.forEach((c: any, idx: number) => {
+    cursantes.forEach((c: any) => {
       const rawOcc = (c.ocupacion_especifica ?? c.ocupacionEspecifica ?? c.ocupacion ?? '').toString().trim();
       let ocupacionCanon = rawOcc;
       const codeMatch = rawOcc.match(/^\s*(\d{2})/);
@@ -221,7 +222,6 @@ export function ConstanciasAdminPage() {
       topFin = fin ?? '';
     }
 
-    setCursoInteresAll(topCurso ?? '');
     setFechaInicioAll(topInicio ?? '');
     setFechaFinAll(topFin ?? '');
 
@@ -492,6 +492,241 @@ export function ConstanciasAdminPage() {
     }
   };
 
+  async function imageUrlToDataUrl(url: string): Promise<string | undefined> {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return undefined;
+    }
+  }
+
+  const generateLista = async (row: Row) => {
+    if (!row.id) return;
+    const raw = certificateRawMap[row.id];
+    if (!raw) {
+      showNotification({
+        title: "Error",
+        message: "No se encontró la información completa de la constancia",
+        color: "red",
+      });
+      return;
+    }
+    try {
+      const cursantes: any[] = raw.xlsx_object?.cursantes ?? [];
+      if (!Array.isArray(cursantes) || cursantes.length === 0) {
+        showNotification({
+          title: "Atención",
+          message: "No hay cursantes para esta constancia",
+          color: "yellow",
+        });
+        return;
+      }
+      const courseNameFromCertificate = raw?.certificate_courses && Array.isArray(raw.certificate_courses) && raw.certificate_courses.length > 0
+        ? raw.certificate_courses[0]?.course?.name
+        : undefined;
+      const effectiveCourseName = courseNameFromCertificate ?? raw?.course_name ?? raw?.course?.name ?? "";
+      const xlsxPeriod = raw?.xlsx_object?.course_period;
+      let effectivePeriod = xlsxPeriod ?? raw?.course_period ?? "";
+      if (!effectivePeriod) {
+        const firstC = Array.isArray(cursantes) && cursantes.length > 0 ? cursantes[0] : null;
+        if (firstC) {
+          const a = firstC.fecha_inicio ?? firstC.fechaInicio ?? "";
+          const b = firstC.fecha_fin ?? firstC.fechaFin ?? "";
+          if (a || b) effectivePeriod = `${a} / ${b}`;
+        }
+      }
+
+      let periodoStack: any[] = [];
+      if (Array.isArray(raw?.certificate_courses) && raw.certificate_courses.length > 1) {
+        periodoStack = raw.certificate_courses.map((ac: any) => {
+          const name = (ac?.course?.name ?? ac?.course_name ?? '').toString();
+          const s = ac?.start ?? ac?.fecha_inicio ?? '';
+          const e = ac?.end ?? ac?.fecha_fin ?? '';
+          const period = (s || e) ? `${s || ''}${s && e ? ' / ' : ''}${e || ''}` : '';
+          return {
+            text: [
+              { text: name || '', bold: true, fontSize: 8 },
+              ...(period ? [{ text: ' —> ' }, { text: period, fontSize: 7 }] : []),
+            ],
+            margin: [0, 2, 0, 2],
+          };
+        }).filter(Boolean);
+      } else {
+        const name = effectiveCourseName ?? '';
+        if (name) {
+          let periodText = effectivePeriod ?? '';
+          if (!periodText && Array.isArray(raw?.certificate_courses) && raw.certificate_courses.length > 0) {
+            const ac0 = raw.certificate_courses[0];
+            const s0 = ac0?.start ?? ac0?.fecha_inicio ?? '';
+            const e0 = ac0?.end ?? ac0?.fecha_fin ?? '';
+            if (s0 || e0) periodText = `${s0 || ''}${s0 && e0 ? ' / ' : ''}${e0 || ''}`;
+          }
+          if (periodText) {
+            periodoStack = [
+              { text: [{ text: name, bold: true, fontSize: 10 }] },
+              { text: [{ text: periodText, fontSize: 9 }], margin: [0, 2, 0, 0] },
+            ];
+          } else {
+            periodoStack = [{ text: [{ text: name, bold: true, fontSize: 10 }] }];
+          }
+        } else {
+          periodoStack = [{ text: [{ text: effectivePeriod ?? '', fontSize: 9 }] }];
+        }
+      }
+
+      const headerTableBody = [
+        [
+          { text: "Empresa", bold: true, border: [false, false, false, false] },
+          { text: raw.company_name ?? "", border: [false, false, false, false] },
+        ],
+        [
+          { text: "Periodo", bold: true, border: [false, false, false, false] },
+          {
+            border: [true, true, true, true],
+            fillColor: '#549afbff',
+            stack: periodoStack.map((it: any) => {
+              if (typeof it === 'string') return { text: it, margin: [8, 6, 8, 6], fontSize: 7 };
+              return { ...it, margin: [8, 2, 8, 2] };
+            }),
+          },
+        ],
+        [
+          { text: "Agente Capacitador", bold: true, border: [false, false, false, false] },
+          { text: raw.trainer_fullname ?? "", border: [false, false, false, false] },
+        ],
+        [
+          { text: "Registro", bold: true, border: [false, false, false, false] },
+          { text: raw.stps ?? raw._id ?? "", border: [false, false, false, false] },
+        ],
+      ];
+      const tableBody: any[] = [];
+      tableBody.push([
+        { text: "#", bold: true, alignment: "center" },
+        { text: "NOMBRE COMPLETO", bold: true },
+        { text: "CURP", bold: true },
+        { text: "PUESTO DE TRABAJO", bold: true },
+        { text: "FIRMA", bold: true },
+      ]);
+
+      cursantes.forEach((c, i) => {
+        tableBody.push([
+          { text: String(i + 1), alignment: "center" },
+          { text: (c.nombre ?? "").toString().toUpperCase() },
+          { text: (c.curp ?? "").toString().toUpperCase() },
+          { text: c.ocupacion_especifica ?? "" },
+          { text: "" },
+        ]);
+      });
+      const logoDataUrl = await imageUrlToDataUrl("/logo.png");
+
+      const docDefinition: any = {
+        pageSize: "A4",
+        pageMargins: [40, 30, 40, 30],
+        content: [
+          [
+            {
+              columns: [
+                { width: 120, image: logoDataUrl, margin: [0, 0, 0, 0] },
+                {
+                  width: "*",
+                  stack: [
+                    {
+                      text: "Registro de curso DOGROUP",
+                      style: "title",
+                      margin: [0, 0, 0, 8],
+                      alignment: "right",
+                    },
+                    {
+                      table: { widths: ["auto", "*"], body: headerTableBody },
+                      layout: "noBorders",
+                    },
+                  ],
+                  margin: [24, 0, 0, 0],
+                },
+              ],
+              columnGap: 36,
+              margin: [0, 0, 0, 12],
+            },
+          ],
+          {
+            table: {
+              headerRows: 1,
+              widths: [30, "*", 150, 120, 80],
+              body: tableBody,
+            },
+            layout: {
+              fillColor: (rowIndex: number) => (rowIndex === 0 ? "#CCCCCC" : null),
+            },
+          },
+          { text: "\n\n" },
+          {
+            columns: [
+              {
+                width: "50%",
+                stack: [
+                  { text: "Instructor", bold: true, alignment: "center" },
+                  { text: (raw.trainer_fullname ?? "").toString().toUpperCase(), alignment: "center" },
+                  { text: "\n\n" },
+                  {
+                    canvas: [
+                      { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
+                    ],
+                    margin: [0, 12, 0, 6],
+                    alignment: "center",
+                  },
+                  { text: "Firma", margin: [0, 6, 0, 0], alignment: "center" },
+                ],
+                alignment: "center",
+              },
+              {
+                width: "50%",
+                stack: [
+                  {
+                    text: "Capacitación/ Representante",
+                    bold: true,
+                    alignment: "center",
+                  },
+                  { text: (raw.legal_representative ?? "").toString().toUpperCase(), alignment: "center" },
+                  { text: "\n\n" },
+                  {
+                    canvas: [
+                      { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
+                    ],
+                    margin: [0, 12, 0, 6],
+                    alignment: "center",
+                  },
+                  { text: "Firma", margin: [0, 6, 0, 0], alignment: "center" },
+                ],
+                alignment: "center",
+              },
+            ],
+            margin: [0, 28, 0, 0],
+            columnGap: 10,
+            alignment: "center",
+          },
+        ],
+        styles: { title: { fontSize: 14, bold: true, alignment: "center" } },
+        defaultStyle: { fontSize: 9 },
+      };
+      
+      pdfMake.createPdf(docDefinition).download(`lista_${raw._id ?? "lista"}.pdf`);
+    } catch (err) {
+      console.error(err);
+      showNotification({
+        title: "Error",
+        message: "No se pudo generar el PDF",
+        color: "red",
+      });
+    }
+  };
+
   // Generar PDFs: re-fetch certificate like ConstanciasEmpresa and pass certificate_courses + cursantes with overrides
   const handleGeneratePDFs = async (row: Row) => {
     if (!row.id) return;
@@ -582,6 +817,14 @@ export function ConstanciasAdminPage() {
         <Group gap={4} align="center">
           <Button size="xs" className="action-btn small-action-btn" onClick={() => { handleVerificar(row); }} style={{ backgroundColor: "var(--olive-green)", color: "white" }}>Verificar</Button>
           <Button size="xs" className="action-btn small-action-btn" onClick={() => void handleGeneratePDFs(row)} style={{ backgroundColor: "var(--olive-green)", color: "white" }}>Generar PDFs</Button>
+          <Button
+              size="xs"
+              className="action-btn small-action-btn"
+              onClick={() => void generateLista(row)}
+              style={{ backgroundColor: "var(--olive-green)", color: "white" }}
+            >
+              Lista
+            </Button>
         </Group>
       )} />
 
@@ -626,7 +869,6 @@ export function ConstanciasAdminPage() {
           {selectedRowUsers.length > 0 && selectedCertificate && (() => {
             const keys = filteredKeys;
             const uniqueCourseNames = new Set<string>(selectedRowUsers.map(u => (u.cursoInteres || '').toString().trim()).filter(Boolean));
-            const moreThanOneCursante = keys.length > 1;
             // Deshabilitar showTopCourse para permitir edición individual de fechas
             const showTopCourse = false;
             const keysToShow = keys.length === 1 ? keys : pagedKeys;
