@@ -752,13 +752,23 @@ export function ConstanciasEmpresaPage() {
                                     const trainer = trainers.find(t => t._id === v);
                                     const trainerCourses = (trainer?.trainer_courses ?? []);
                                     // preferir course._id (GUID) -> course.id -> course.course_id
-                                    const courseOpts = trainerCourses.map((tc: any) => ({ value: String(tc.course?._id ?? tc.course?.id ?? tc.course?.course_id ?? tc.course_id ?? ''), label: tc.course?.name ?? 'Curso' }));
+                                    const courseOptsRaw = trainerCourses.map((tc: any) => ({ value: String(tc.course?._id ?? tc.course?.id ?? tc.course?.course_id ?? tc.course_id ?? ''), label: tc.course?.name ?? 'Curso' }));
+                                    
+                                    // Eliminar duplicados usando Set
+                                    const seen = new Set<string>();
+                                    const courseOpts = courseOptsRaw.filter((opt: any) => {
+                                        if (!opt.value || seen.has(opt.value)) return false;
+                                        seen.add(opt.value);
+                                        return true;
+                                    });
+                                    
                                     // construir mapa value -> preferred id (puede ser GUID o otro identificador)
                                     const map: Record<string, string | number> = {};
                                     for (const tc of trainerCourses) {
                                         const preferred = tc.course?._id ?? tc.course?.id ?? tc.course?.course_id ?? tc.course_id ?? '';
+                                        if (!preferred) continue;
                                         const value = String(preferred);
-                                        map[value] = preferred;
+                                        if (!map[value]) map[value] = preferred;
                                     }
                                     setCourseValueMap(map);
                                     if (!courseOpts || courseOpts.length === 0) {
