@@ -102,34 +102,49 @@ export default function ValidarPage() {
 
   // Mostrar la tarjeta de validación similar a la imagen enviada
   const nombre = (cursante?.nombre ?? cursante?.nombre_completo ?? '').toString();
+  
   // Si el QR incluye course_id, intentar mostrar datos específicos de la asociación
   let curso = (certificate?.course_name ?? certificate?.course?.name ?? '') as string;
   let duracion = certificate?.course_duration ?? certificate?.course?.duration ?? '';
   let fecha = certificate?.course_period ?? `${cursante?.fecha_inicio ?? ''} / ${cursante?.fecha_fin ?? ''}`;
   let instructor = cursante?.capacitador ?? certificate?.trainer_fullname ?? '';
+  
+  // Buscar el curso específico en certificate_courses usando el course_id del QR
+  let matched: any = null;
   try {
     if (courseIdParam && Array.isArray(certificate?.certificate_courses)) {
-      const matched = (certificate.certificate_courses as any[]).find((it: any) => String(it.course?.id ?? it.course_id ?? it.id ?? '').toString() === String(courseIdParam));
+      // Buscar por course._id (MongoDB ID) o course_id
+      matched = (certificate.certificate_courses as any[]).find((it: any) => {
+        const courseId = it.course?._id ?? it.course_id ?? it.course?.id ?? '';
+        return String(courseId) === String(courseIdParam);
+      });
+      
       if (matched) {
+        console.log('Curso encontrado para course_id:', courseIdParam, matched);
         curso = matched.course?.name ?? matched.course_name ?? matched.name ?? curso;
-        duracion = matched.duration ?? matched.course?.duration ?? duracion;
+        duracion = matched.course?.duration ?? matched.duration ?? duracion;
+        
+        // Obtener fechas del matched (start/end de certificate_courses)
         const s = matched.start ?? matched.fecha_inicio ?? matched.start_date ?? undefined;
         const e = matched.end ?? matched.fecha_fin ?? matched.end_date ?? undefined;
         const sN = s ? String(s).slice(0, 10) : undefined;
         const eN = e ? String(e).slice(0, 10) : undefined;
         fecha = (sN || eN) ? `${sN || ''}${sN && eN ? ' / ' : ''}${eN || ''}` : fecha;
-        instructor = matched.trainer_fullname ?? matched.capacitador ?? instructor;
+        
+        instructor = matched.trainer_fullname ?? matched.capacitador ?? certificate?.trainer_fullname ?? instructor;
+      } else {
+        console.warn('No se encontró curso con course_id:', courseIdParam, 'en certificate_courses:', certificate.certificate_courses);
       }
     }
   } catch (e) {
-    // ignore
+    console.error('Error al buscar curso específico:', e);
   }
 
-  // valores por defecto si no se encontró asociación específica
-  curso = curso || '';
-  duracion = duracion || '';
-  fecha = fecha || '';
-  instructor = instructor || '';
+  // Valores por defecto si no se encontró asociación específica
+  curso = curso || 'No especificado';
+  duracion = duracion ? `${duracion} horas` : 'No especificado';
+  fecha = fecha || 'No especificado';
+  instructor = instructor || 'No especificado';
   const folio = certificate?._id ?? certificate?.id ?? '';
   const stps = certificate?.stps ?? certificate?.trainer_stps ?? '';
 
