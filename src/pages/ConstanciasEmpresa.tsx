@@ -171,7 +171,6 @@ export function ConstanciasEmpresaPage() {
                     showNotification({ title: 'Cursos asociados', message: 'Cursos asociados correctamente', color: 'green' });
                 }
             } catch (err) {
-                console.error('Error asociando cursos en bulk:', err);
                 showNotification({ title: 'Advertencia', message: 'Constancia creada pero no se pudieron asociar los cursos', color: 'yellow' });
             }
 
@@ -190,7 +189,6 @@ export function ConstanciasEmpresaPage() {
             if (idToUse) void fetchCertificates(idToUse);
             setPreviewPayload(null);
         } catch (err) {
-            console.error('Error enviando preview payload:', err);
             showNotification({ title: 'Error', message: 'No se pudo crear la constancia (preview)', color: 'red' });
         } finally {
             setPreviewSending(false);
@@ -235,7 +233,6 @@ export function ConstanciasEmpresaPage() {
                     showNotification({ title: 'Cursos asociados', message: 'Cursos asociados correctamente', color: 'green' });
                 }
             } catch (err) {
-                console.error('Error asociando cursos en bulk (group via preview):', err);
                 showNotification({ title: 'Advertencia', message: 'Petición creada pero no se pudieron asociar los cursos', color: 'yellow' });
             }
 
@@ -252,7 +249,6 @@ export function ConstanciasEmpresaPage() {
             if (idToUse) void fetchCertificates(idToUse);
             setGroupPreviewPayload(null);
         } catch (err) {
-            console.error('Error enviando payload grupal:', err);
             showNotification({ title: 'Error', message: 'No se pudo crear la petición grupal', color: 'red' });
         } finally {
             setGroupPreviewSending(false);
@@ -302,7 +298,6 @@ export function ConstanciasEmpresaPage() {
             setParsedXlsxObject(parsed);
             showNotification({ title: 'Listo', message: `Se detectaron ${cursantes.length} filas`, color: 'green' });
         } catch (err) {
-            console.error(err);
             showNotification({ title: 'Error', message: 'No se pudo parsear el archivo Excel', color: 'red' });
         }
     };
@@ -341,7 +336,6 @@ export function ConstanciasEmpresaPage() {
             });
             setCapacitadorOptions(options);
         } catch (err) {
-            console.error(err);
         }
     };
 
@@ -926,26 +920,47 @@ export function ConstanciasEmpresaPage() {
                                 data={capacitadorOptions}
                                 value={individualForm.values.trainer}
                                 onChange={(v) => {
-                                    individualForm.setFieldValue('trainer', v ?? '');
-                                    // actualizar opciones de cursos según el capacitador seleccionado
-                                    const trainer = trainers.find(t => t._id === v);
-                                    const trainerCourses = (trainer?.trainer_courses ?? []);
-                                    // preferir course._id (GUID) -> course.id -> course.course_id
-                                    const courseOpts = trainerCourses.map((tc: any) => ({ value: String(tc.course?._id ?? tc.course?.id ?? tc.course?.course_id ?? tc.course_id ?? ''), label: tc.course?.name ?? 'Curso' }));
-                                    const map: Record<string, string | number> = {};
-                                    for (const tc of trainerCourses) {
-                                        const preferred = tc.course?._id ?? tc.course?.id ?? tc.course?.course_id ?? tc.course_id ?? '';
-                                        const value = String(preferred);
-                                        map[value] = preferred;
-                                    }
-                                    setCourseValueMap(map);
-                                    if (!courseOpts || courseOpts.length === 0) {
-                                        setCoursesOptions([{ value: '', label: 'Sin cursos disponibles' }]);
+                                    try {
+                                        individualForm.setFieldValue('trainer', v ?? '');
+                                        // actualizar opciones de cursos según el capacitador seleccionado
+                                        const trainer = trainers.find(t => t._id === v);
+                                        const trainerCourses = Array.isArray(trainer?.trainer_courses) ? trainer.trainer_courses : [];
+                                        
+                                        // preferir course._id (GUID) -> course.id -> course.course_id
+                                        const courseOpts = trainerCourses
+                                            .filter((tc: any) => tc && tc.course) // filtrar cursos inválidos
+                                            .map((tc: any) => {
+                                                const courseId = tc.course?._id ?? tc.course?.id ?? tc.course?.course_id ?? tc.course_id ?? '';
+                                                const courseName = tc.course?.name ?? 'Curso sin nombre';
+                                                return { 
+                                                    value: String(courseId), 
+                                                    label: courseName 
+                                                };
+                                            })
+                                            .filter((opt: any) => opt.value); // eliminar opciones sin ID
+                                        
+                                        const map: Record<string, string | number> = {};
+                                        for (const tc of trainerCourses) {
+                                            if (!tc || !tc.course) continue;
+                                            const preferred = tc.course?._id ?? tc.course?.id ?? tc.course?.course_id ?? tc.course_id ?? '';
+                                            if (!preferred) continue;
+                                            const value = String(preferred);
+                                            map[value] = preferred;
+                                        }
+                                        setCourseValueMap(map);
+                                        
+                                        if (!courseOpts || courseOpts.length === 0) {
+                                            setCoursesOptions([{ value: '', label: 'Sin cursos disponibles' }]);
+                                            setCoursesDisabled(true);
+                                            individualForm.setFieldValue('courses_ids', []);
+                                        } else {
+                                            setCoursesOptions(courseOpts);
+                                            setCoursesDisabled(false);
+                                        }
+                                    } catch (error) {
+                                        setCoursesOptions([{ value: '', label: 'Error cargando cursos' }]);
                                         setCoursesDisabled(true);
                                         individualForm.setFieldValue('courses_ids', []);
-                                    } else {
-                                        setCoursesOptions(courseOpts);
-                                        setCoursesDisabled(false);
                                     }
                                 }}
                             />
