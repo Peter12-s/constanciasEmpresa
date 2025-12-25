@@ -168,10 +168,8 @@ export default function ValidarPage() {
             <Text><strong>Curso:</strong> {curso}</Text>
             <Text><strong>Duración:</strong> {String(duracion)}</Text>
             <Text><strong>Fecha:</strong> {fecha}</Text>
-            <Text><strong>Instructor:</strong> {instructor}</Text>
-            <Text><strong>STPS del capacitador:</strong> {stps}</Text>
-            <Text><strong>Folio:</strong> {folio}</Text>
-            
+            <Text><strong>Capacitador:</strong> {instructor}</Text>
+            <Text><strong>STPS del capacitador:</strong> {stps}</Text>      
           </Card>
         </Card>
       </div>
