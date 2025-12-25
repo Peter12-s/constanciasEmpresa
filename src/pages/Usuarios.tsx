@@ -110,12 +110,17 @@ export function UsuariosPage() {
       (async () => {
         const id = editingUser._id;
         const res: any = await BasicPetition({ endpoint: '/certificate-user', method: 'PATCH', id, data: values });
-        setUsers((prev) => prev.map((u) => ({ ...u, ...res })));
+        // Actualizar solo el usuario con el ID correspondiente
+        setUsers((prev) => prev.map((u) => (u._id === id ? { ...u, ...res } : u)));
+        // Refrescar datos del servidor para asegurar consistencia
+        await getData();
       })();
     } else {
       (async () => {
         const created: any = await BasicPetition({ endpoint: '/certificate-user', method: 'POST', data: values });
         setUsers((prev) => [...prev, created]);
+        // Refrescar datos del servidor para asegurar consistencia
+        await getData();
       })();
     }
 
