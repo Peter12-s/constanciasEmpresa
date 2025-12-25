@@ -359,9 +359,9 @@ export function ConstanciasEmpresaPage() {
                 const cursantes = r.cursantes ?? [];
                 if (cursantes.length === 0) return '';
                 if (cursantes.length === 1) {
-                    return cursantes[0].nombre || '';
+                    return (cursantes[0].nombre || '').toUpperCase();
                 }
-                return 'Grupal';
+                return 'GRUPAL';
             }
         },
     
