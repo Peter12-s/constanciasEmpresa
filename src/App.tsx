@@ -13,22 +13,25 @@ import { useAuth } from './AuthContext';
 function DefaultRedirect() {
   const auth = useAuth();
 
-  // Si es ADMINISTRADOR -> constancias, si es EMPRESA -> constanciasEmpresa
-  if (auth.userType === 'ADMINISTRADOR') return <Navigate to="/constancias" replace />;
-  if (auth.userType === 'EMPRESA') return <Navigate to="/constanciasEmpresa" replace />;
+  if (auth.userType === 'ADMINISTRADOR') {
+    return <Navigate to="/constancias" replace />;
+  }
 
-  // fallback
-  return <Navigate to="/constancias" replace />;
+  if (auth.userType === 'EMPRESA') {
+    return <Navigate to="/constanciasEmpresa" replace />;
+  }
+
+  return <Navigate to="/login" replace />;
 }
 
 export default function App() {
   return (
     <Routes>
-
+      {/* Públicas */}
       <Route path="/login" element={<Login />} />
-
       <Route path="/validar/:id/:curp" element={<ValidarPage />} />
 
+      {/* Protegidas */}
       <Route
         path="/"
         element={
@@ -37,17 +40,18 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="*" element={<div>Página no encontrada</div>} />
+        {/* 👇 RUTA POR DEFECTO */}
         <Route index element={<DefaultRedirect />} />
-        <Route index path="constancias" element={<ConstanciasAdminPage />} />
+
+        {/* 👇 RUTAS REALES */}
+        <Route path="constancias" element={<ConstanciasAdminPage />} />
         <Route path="cursos" element={<CursosPage />} />
         <Route path="empresas" element={<EmpresasPage />} />
         <Route path="constanciasEmpresa" element={<ConstanciasEmpresaPage />} />
         <Route path="usuarios" element={<UsuariosPage />} />
 
-
-        {/* <Route path="dashboard" element={<DashboardPage />} /> */}
-        {/* <Route path="profile" element={<ProfilePage />} /> */}
+        {/* 👇 404 */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );
