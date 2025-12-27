@@ -5,8 +5,8 @@ import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import appConfig from "../core/constants/appConfig";
 
-const SIGNATURE_FIT: [number, number] = [200, 100];
-const SIGNATURE_HEIGHT = 105;
+const SIGNATURE_FIT: [number, number] = [280, 140];
+const SIGNATURE_HEIGHT = 85;
 
 const pdfFontsAny = pdfFonts as any;
 const pdfMakeAny = pdfMake as any;
@@ -245,7 +245,7 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
   return [
     {
       columns: [
-        { width: 80, text: '[LOGO AQUÍ]', fontSize: 10, margin: [0, 0, 0, 0], alignment: 'left' },
+        { width: 150, alignment: 'left',fontSize: 10,  stack: logoDataUrl ? [{ image: logoDataUrl, fit: [140, 50] }] : [] },
         {
           width: 380,
           stack: [
@@ -253,7 +253,7 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
             { text: 'CONSTANCIA DE COMPETENCIAS O DE HABILIDADES LABORALES', bold: true, fontSize: 12, alignment: 'center', margin: [0, 0, 0, 1] },
           ]
         },
-        { width: 80, stack: [{ image: qrDataUrl, fit: [85, 85], alignment: 'right', margin: [0, 5, 0, 0] }] }
+        { width: 80, stack: [{ image: qrDataUrl, fit: [55, 55], alignment: 'right', margin: [0, 5, 0, 0] }] }
       ],
       margin: [0, 0, 0, 5]
     },
@@ -316,80 +316,88 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
       ],
       margin: [0, 0, 0, 8],
     },
-    { text: 'Los datos se asientan en esta constancia bajo protesta de decir verdad, apercibidos de la responsabilidad en que incurre todo aquel que no se conduce con verdad.', fontSize: 6.5, italics: true, alignment: 'center', margin: [0, 4, 0, 20] },
+    { text: 'Los datos se asientan en esta constancia bajo protesta de decir verdad, apercibidos de la responsabilidad en que incurre todo aquel que no se conduce con verdad.', fontSize: 6.5,bold: true, alignment: 'center', margin: [0, 0, 0, 10] },
     {
-      columns: [
-        {
-          width: '*',
-          stack: [
-            { text: 'Capacitador', fontSize: 7.5, alignment: 'center', bold: true },
-
-            {
-              table: {
-                widths: ['*'],
-                heights: [SIGNATURE_HEIGHT],
-                body: [[
-                  signatureDataUrl
-                    ? {
-                      image: signatureDataUrl,
-                      fit: SIGNATURE_FIT,
-                      alignment: 'center',
-                    }
-                    : { text: '' },
-                ]],
+      table: {
+        widths: ['*', '*', '*'],
+        body: [[
+          {
+            stack: [
+              { text: 'Capacitador', fontSize: 7.5, alignment: 'center', bold: true, margin: [0, 3, 0, 3] },
+              {
+                table: {
+                  widths: ['*'],
+                  heights: [SIGNATURE_HEIGHT],
+                  body: [[
+                    signatureDataUrl
+                      ? {
+                        image: signatureDataUrl,
+                        fit: SIGNATURE_FIT,
+                        alignment: 'center',
+                      }
+                      : { text: '' },
+                  ]],
+                },
+                layout: 'noBorders',
+                margin: [0, 2, 0, 2],
               },
-              layout: 'noBorders',
-              margin: [0, 2, 0, 2],
-            },
-
-            {
-              canvas: [
-                { type: 'line', x1: 0, y1: 0, x2: 155, y2: 0, lineWidth: 0.5 },
-              ],
-              alignment: 'center',
-              margin: [0, 2, 0, 4],
-            },
-
-            { text: instructor, fontSize: 6.5, alignment: 'center', bold: true },
-            { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' },
-          ],
-        },
-        {
-          width: '*', stack: [
-            { text: 'Patrón o representante legal', fontSize: 7.5, alignment: 'center', bold: true },
-            // área reservada con la misma altura que la columna del instructor
-            {
-              table: {
-                widths: ['*'],
-                body: [[{ text: '' }]],
-                heights: [60]
+              {
+                canvas: [
+                  { type: 'line', x1: 10, y1: 0, x2: 150, y2: 0, lineWidth: 0.5 },
+                ],
+                alignment: 'center',
+                margin: [0, 2, 0, 4],
               },
-              layout: { defaultBorder: false },
-              margin: [0, 3, 0, 3]
-            },
-            { canvas: [{ type: 'line', x1: 5, y1: 0, x2: 150, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 2, 0, 4] },
-            { text: repLegal, fontSize: 6.5, alignment: 'center', margin: [0, 4, 0, 0] },
-            { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' }
-          ]
-        },
-        {
-          width: '*', stack: [
-            { text: 'Representante de los trabajadores', fontSize: 7.5, alignment: 'center', bold: true },
-            {
-              table: {
-                widths: ['*'],
-                body: [[{ text: '' }]],
-                heights: [60]
+              { text: instructor, fontSize: 6.5, alignment: 'center', bold: true },
+              { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' },
+            ],
+            margin: [5, 5, 5, 5],
+          },
+          {
+            stack: [
+              { text: 'Por la empresa', fontSize: 7.5, alignment: 'center', bold: true, margin: [0, 3, 0, 3] },
+              {
+                table: {
+                  widths: ['*'],
+                  body: [[{ text: '' }]],
+                  heights: [60]
+                },
+                layout: { defaultBorder: false },
+                margin: [0, 3, 0, 3]
               },
-              layout: { defaultBorder: false },
-              margin: [0, 3, 0, 3]
-            },
-            { canvas: [{ type: 'line', x1: 5, y1: 0, x2: 150, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 2, 0, 4] },
-            { text: repTrab, fontSize: 6.5, alignment: 'center', margin: [0, 4, 0, 0] },
-            { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' }
-          ]
-        }
-      ], columnGap: 15, margin: [0, 0, 0, 15]
+              { canvas: [{ type: 'line', x1: 10, y1: 0, x2: 140, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 2, 0, 4] },
+              { text: repLegal, fontSize: 6.5, alignment: 'center', margin: [0, 4, 0, 0] },
+              { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' }
+            ],
+            margin: [5, 5, 5, 5],
+          },
+          {
+            stack: [
+              { text: 'Por los trabajadores', fontSize: 7.5, alignment: 'center', bold: true, margin: [0, 3, 0, 3] },
+              {
+                table: {
+                  widths: ['*'],
+                  body: [[{ text: '' }]],
+                  heights: [60]
+                },
+                layout: { defaultBorder: false },
+                margin: [0, 3, 0, 3]
+              },
+              { canvas: [{ type: 'line', x1: 10, y1: 0, x2: 140, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 2, 0, 4] },
+              { text: repTrab, fontSize: 6.5, alignment: 'center', margin: [0, 4, 0, 0] },
+              { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' }
+            ],
+            margin: [5, 5, 5, 5],
+          }
+        ]],
+      },
+      layout: {
+        hLineWidth: () => 0.5,
+        vLineWidth: () => 0.5,
+        hLineColor: () => '#000000',
+        vLineColor: () => '#000000',
+      },
+      margin: [0, 0, 0, 8]
     },
     {
       margin: [10, 8, 10, 0],
@@ -721,7 +729,7 @@ export async function generateAndDownloadZipDC3(
           {
             width: '50%',
             table: {
-              widths: [22, '*'],
+              widths: [50, '*'],
               body: [
                 [tableHeader('/E DEL ÁREA/SUBÁ'), tableHeader('DENOMINACIÓN')],
                 [cell('1', true, true), cell('Cultivo, crianza y aprovechamiento')],
@@ -768,7 +776,7 @@ export async function generateAndDownloadZipDC3(
           {
             width: '50%',
             table: {
-              widths: [22, '*'],
+              widths: [50, '*'],
               body: [
                 [tableHeader('/E DEL ÁREA/SUBÁ'), tableHeader('DENOMINACIÓN')],
                 [cell('6', true, true), cell('Transporte')],
