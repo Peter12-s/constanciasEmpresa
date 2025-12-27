@@ -5,8 +5,8 @@ import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import appConfig from "../core/constants/appConfig";
 
-const SIGNATURE_FIT: [number, number] = [140, 55];
-const SIGNATURE_HEIGHT = 65;
+const SIGNATURE_FIT: [number, number] = [160, 60];
+const SIGNATURE_HEIGHT = 70;
 
 const pdfFontsAny = pdfFonts as any;
 const pdfMakeAny = pdfMake as any;
@@ -99,20 +99,20 @@ const sectionHeader = (text: string) => ({
         fillColor: '#000000',
         color: '#FFFFFF',
         bold: true,
-        fontSize: 9,
+        fontSize: 8,
         alignment: 'center',
-        margin: [0, 3, 0, 3],
+        margin: [0, 2, 0, 2],
         border: [true, true, true, true],
       },
     ]],
   },
   layout: 'noBorders',
-  margin: [0, 6, 0, 4],
+  margin: [0, 4, 0, 3],
 });
 
 const fieldWithLine = (label: string, value: string, fontSizeVal = 9) => ({
   stack: [
-    { text: label, fontSize: 6, margin: [2, 0, 0, 1] },
+    { text: label, fontSize: 5.5, margin: [1, 0, 0, 0.5] },
     {
       table: {
         widths: ['*'],
@@ -122,7 +122,7 @@ const fieldWithLine = (label: string, value: string, fontSizeVal = 9) => ({
             fontSize: fontSizeVal,
             bold: true,
             alignment: 'center',
-            margin: [0, 2, 0, 2],
+            margin: [0, 1.5, 0, 1.5],
             border: [false, false, false, true],
           },
         ]],
@@ -130,7 +130,7 @@ const fieldWithLine = (label: string, value: string, fontSizeVal = 9) => ({
       layout: 'noBorders',
     },
   ],
-  margin: [0, 0, 0, 4],
+  margin: [0, 0, 0, 3],
 });
 
 
@@ -146,20 +146,20 @@ const charGrid = (label: string, value: string, length: number) => {
       {
         width: 'auto',
         text: label,
-        fontSize: 6,
-        margin: [0, 10, 5, 0],
+        fontSize: 5.5,
+        margin: [0, 8, 4, 0],
       },
       {
         table: {
-          widths: Array(length).fill(12),
-          heights: [18],
+          widths: Array(length).fill(11),
+          heights: [16],
           body: [[
             ...cleanVal.split('').map(c => ({
               text: c,
-              fontSize: 9,
+              fontSize: 8,
               bold: true,
               alignment: 'center',
-              margin: [0, 2, 0, 0],
+              margin: [0, 1, 0, 0],
             })),
           ]],
         },
@@ -170,13 +170,13 @@ const charGrid = (label: string, value: string, length: number) => {
 
 
 const dateGridSection = (dateObj: { d: string[], m: string[], a: string[] }) => {
-  const cell = (txt: string) => ({ text: txt, fontSize: 9, bold: true, alignment: 'center', border: [true, true, true, true] });
-  const header = (txt: string, span: number = 1) => ({ text: txt, fontSize: 6, alignment: 'center', border: [false, false, false, false], colSpan: span, margin: [0, 0, 0, 2] });
+  const cell = (txt: string) => ({ text: txt, fontSize: 8, bold: true, alignment: 'center', border: [true, true, true, true], margin: [0, 1, 0, 1] });
+  const header = (txt: string, span: number = 1) => ({ text: txt, fontSize: 5.5, alignment: 'center', border: [false, false, false, false], colSpan: span, margin: [0, 0, 0, 1] });
 
   return {
     width: 'auto',
     table: {
-      widths: [11, 11, 11, 11, 5, 11, 11, 5, 11, 11],
+      widths: [10, 10, 10, 10, 4, 10, 10, 4, 10, 10],
       body: [
         [header('Año', 4), {}, {}, {}, {}, header('Mes', 2), {}, {}, header('Día', 2), {}],
         [
@@ -215,30 +215,30 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
   return [
     {
       columns: [
-        { width: 150, stack: logoDataUrl ? [{ image: logoDataUrl, fit: [140, 50] }] : [] },
-        { width: '*', stack: [{ text: 'FORMATO DC-3', bold: true, fontSize: 13, alignment: 'center', margin: [0, 8, 0, 2] }, { text: 'CONSTANCIA DE COMPETENCIAS O DE HABILIDADES LABORALES', fontSize: 9, bold: true, alignment: 'center' }] },
-        { width: 80, stack: [{ image: qrDataUrl, fit: [75, 75], alignment: 'right' }] }
-      ], margin: [0, 0, 0, 5]
+        { width: 140, stack: logoDataUrl ? [{ image: logoDataUrl, fit: [130, 45] }] : [] },
+        { width: '*', stack: [{ text: 'FORMATO DC-3', bold: true, fontSize: 12, alignment: 'center', margin: [0, 6, 0, 1] }, { text: 'CONSTANCIA DE COMPETENCIAS O DE HABILIDADES LABORALES', fontSize: 8, bold: true, alignment: 'center' }] },
+        { width: 85, stack: [{ image: qrDataUrl, fit: [80, 80], alignment: 'right', margin: [0, -5, 0, 0] }] }
+      ], margin: [0, 0, 0, 3]
     },
     sectionHeader('DATOS DEL TRABAJADOR'),
-    fieldWithLine('Nombre (Anotar apellido paterno, apellido materno y nombre (s))', nombre, 10),
-    { margin: [0, 4, 0, 4], columns: [{ width: 'auto', ...charGrid('Clave Única de\nRegistro de\nPoblación', curp, 18) }, { width: 10, text: '' }, { width: '*', ...fieldWithLine('Ocupación específica (Catálogo Nacional de Ocupaciones) 1/', ocupacion, 8) }] },
-    fieldWithLine('Puesto', puesto, 9),
+    fieldWithLine('Nombre (Anotar apellido paterno, apellido materno y nombre (s))', nombre, 9),
+    { margin: [0, 3, 0, 3], columns: [{ width: 'auto', ...charGrid('Clave Única de\nRegistro de\nPoblación', curp, 18) }, { width: 8, text: '' }, { width: '*', ...fieldWithLine('Ocupación específica (Catálogo Nacional de Ocupaciones) 1/', ocupacion, 7.5) }] },
+    fieldWithLine('Puesto', puesto, 8),
     sectionHeader('DATOS DE LA EMPRESA'),
-    fieldWithLine('Nombre o razón social (En caso de persona física, anotar apellido paterno, apellido materno y nombre(s))', razonSocial, 9),
-    { margin: [0, 4, 0, 4], ...charGrid('Registro Federal de Contribuyentes con homoclave (SHCP)', rfc, 13) },
+    fieldWithLine('Nombre o razón social (En caso de persona física, anotar apellido paterno, apellido materno y nombre(s))', razonSocial, 8),
+    { margin: [0, 3, 0, 3], ...charGrid('Registro Federal de Contribuyentes con homoclave (SHCP)', rfc, 13) },
     sectionHeader('DATOS DEL PROGRAMA DE CAPACITACIÓN, ADIESTRAMIENTO Y PRODUCTIVIDAD'),
-    fieldWithLine('Nombre del curso', curso, 10),
-    { margin: [0, 10, 0, 10], columns: [{ width: 80, stack: [{ text: 'Duración en horas', fontSize: 6, margin: [0, 0, 0, 2] }, { text: String(duracion), fontSize: 10, bold: true, alignment: 'center' }] }, { width: 'auto', text: 'Periodo de\nejecución:', fontSize: 8, bold: true, margin: [0, 15, 5, 0] }, { width: 'auto', text: 'De', fontSize: 9, margin: [0, 15, 5, 0] }, dateGridSection(fInicio), { width: 'auto', text: 'a', fontSize: 9, margin: [5, 15, 5, 0] }, dateGridSection(fFin)] },
-    fieldWithLine('Área temática del curso 2/', (raw.area_tematica ?? '6000 Seguridad'), 9),
-    { columns: [{ width: '*', ...fieldWithLine('Nombre del agente capacitador o STPS 3/', instructor, 9) }, { width: 20, text: '' }, { width: 140, stack: [{ text: 'REG. STPS', fontSize: 6 }, { text: regStps, fontSize: 9, bold: true, border: [false, false, false, false], alignment: 'right' }] }], margin: [0, 0, 0, 10] },
-    { text: 'Los datos se asientan en esta constancia bajo protesta de decir verdad, apercibidos de la responsabilidad en que incurre todo aquel que no se conduce con verdad.', fontSize: 7, italics: true, alignment: 'center', margin: [0, 5, 0, 25] },
+    fieldWithLine('Nombre del curso', curso, 9),
+    { margin: [0, 8, 0, 8], columns: [{ width: 75, stack: [{ text: 'Duración en horas', fontSize: 5.5, margin: [0, 0, 0, 1] }, { text: String(duracion), fontSize: 9, bold: true, alignment: 'center' }] }, { width: 'auto', text: 'Periodo de\nejecución:', fontSize: 7, bold: true, margin: [0, 12, 4, 0] }, { width: 'auto', text: 'De', fontSize: 8, margin: [0, 12, 4, 0] }, dateGridSection(fInicio), { width: 'auto', text: 'a', fontSize: 8, margin: [4, 12, 4, 0] }, dateGridSection(fFin)] },
+    fieldWithLine('Área temática del curso 2/', (raw.area_tematica ?? '6000 Seguridad'), 8),
+    { columns: [{ width: '*', ...fieldWithLine('Nombre del agente capacitador o STPS 3/', instructor, 8) }, { width: 15, text: '' }, { width: 130, stack: [{ text: 'REG. STPS', fontSize: 5.5 }, { text: regStps, fontSize: 8, bold: true, border: [false, false, false, false], alignment: 'right' }] }], margin: [0, 0, 0, 8] },
+    { text: 'Los datos se asientan en esta constancia bajo protesta de decir verdad, apercibidos de la responsabilidad en que incurre todo aquel que no se conduce con verdad.', fontSize: 6.5, italics: true, alignment: 'center', margin: [0, 4, 0, 20] },
     {
       columns: [
         {
           width: '*',
           stack: [
-            { text: 'Capacitador', fontSize: 8, alignment: 'center', bold: true },
+            { text: 'Capacitador', fontSize: 7.5, alignment: 'center', bold: true },
 
             {
               table: {
@@ -260,19 +260,19 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
 
             {
               canvas: [
-                { type: 'line', x1: 0, y1: 0, x2: 160, y2: 0, lineWidth: 0.6 },
+                { type: 'line', x1: 0, y1: 0, x2: 155, y2: 0, lineWidth: 0.5 },
               ],
               alignment: 'center',
-              margin: [0, 3, 0, 5],
+              margin: [0, 2, 0, 4],
             },
 
-            { text: instructor, fontSize: 7, alignment: 'center', bold: true },
-            { text: 'Nombre y firma', fontSize: 6, alignment: 'center' },
+            { text: instructor, fontSize: 6.5, alignment: 'center', bold: true },
+            { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' },
           ],
         },
         {
           width: '*', stack: [
-            { text: 'Patrón o representante legal', fontSize: 8, alignment: 'center', bold: true },
+            { text: 'Patrón o representante legal', fontSize: 7.5, alignment: 'center', bold: true },
             // área reservada con la misma altura que la columna del instructor
             {
               table: {
@@ -283,14 +283,14 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
               layout: { defaultBorder: false },
               margin: [0, 3, 0, 3]
             },
-            { canvas: [{ type: 'line', x1: 5, y1: 0, x2: 155, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 4, 0, 6] },
-            { text: repLegal, fontSize: 7, alignment: 'center', margin: [0, 6, 0, 0] },
-            { text: 'Nombre y firma', fontSize: 6, alignment: 'center' }
+            { canvas: [{ type: 'line', x1: 5, y1: 0, x2: 150, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 2, 0, 4] },
+            { text: repLegal, fontSize: 6.5, alignment: 'center', margin: [0, 4, 0, 0] },
+            { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' }
           ]
         },
         {
           width: '*', stack: [
-            { text: 'Representante de los trabajadores', fontSize: 8, alignment: 'center', bold: true },
+            { text: 'Representante de los trabajadores', fontSize: 7.5, alignment: 'center', bold: true },
             {
               table: {
                 widths: ['*'],
@@ -300,16 +300,16 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
               layout: { defaultBorder: false },
               margin: [0, 3, 0, 3]
             },
-            { canvas: [{ type: 'line', x1: 5, y1: 0, x2: 155, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 4, 0, 6] },
-            { text: repTrab, fontSize: 7, alignment: 'center', margin: [0, 6, 0, 0] },
-            { text: 'Nombre y firma', fontSize: 6, alignment: 'center' }
+            { canvas: [{ type: 'line', x1: 5, y1: 0, x2: 150, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 2, 0, 4] },
+            { text: repTrab, fontSize: 6.5, alignment: 'center', margin: [0, 4, 0, 0] },
+            { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' }
           ]
         }
-      ], columnGap: 20, margin: [0, 0, 0, 20]
+      ], columnGap: 15, margin: [0, 0, 0, 15]
     },
-    { text: 'INSTRUCCIONES', bold: true, fontSize: 8, margin: [0, 0, 0, 2] },
-    { ul: ['Llenar a máquina o con letra de molde.', 'Deberá entregarse al trabajador dentro de los veinte días hábiles siguientes al término del curso de capacitación aprobado.', '1/ Las áreas y subáreas ocupacionales del Catálogo Nacional de Ocupaciones se encuentran disponibles en el reverso de este formato y en la página www.stps.gob.mx', '2/ Las áreas temáticas de los cursos se encuentran disponibles en el reverso de este formato y en la página www.stps.gob.mx', '3/ Cursos impartidos por el área competente de la Secretaría del Trabajo y Previsión Social.', '4/ Para empresas con menos de 51 trabajadores. Para empresas con más de 50 trabajadores firmará el representante del patrón ante la Comisión mixta de capacitación, adiestramiento y productividad.', '5/ Solo para empresas con más de 50 trabajadores.', '* Dato no obligatorio'], fontSize: 5, margin: [15, 0, 0, 0] },
-    { text: 'DC-3\nANVERSO', alignment: 'right', fontSize: 7, bold: true, margin: [0, 5, 0, 0] }
+    { text: 'INSTRUCCIONES', bold: true, fontSize: 7, margin: [0, 0, 0, 1.5] },
+    { ul: ['Llenar a máquina o con letra de molde.', 'Deberá entregarse al trabajador dentro de los veinte días hábiles siguientes al término del curso de capacitación aprobado.', '1/ Las áreas y subáreas ocupacionales del Catálogo Nacional de Ocupaciones se encuentran disponibles en el reverso de este formato y en la página www.stps.gob.mx', '2/ Las áreas temáticas de los cursos se encuentran disponibles en el reverso de este formato y en la página www.stps.gob.mx', '3/ Cursos impartidos por el área competente de la Secretaría del Trabajo y Previsión Social.', '4/ Para empresas con menos de 51 trabajadores. Para empresas con más de 50 trabajadores firmará el representante del patrón ante la Comisión mixta de capacitación, adiestramiento y productividad.', '5/ Solo para empresas con más de 50 trabajadores.', '* Dato no obligatorio'], fontSize: 4.8, margin: [15, 0, 0, 0], lineHeight: 1.1 },
+    { text: 'DC-3\nANVERSO', alignment: 'right', fontSize: 6.5, bold: true, margin: [0, 4, 0, 0] }
   ];
 }
 
@@ -505,21 +505,22 @@ export async function generateAndDownloadZipDC3(
     const title = (text: string) => ({
       text,
       bold: true,
-      fontSize: 9,
+      fontSize: 8,
       alignment: 'center',
-      margin: [0, 0, 0, 5],
+      margin: [0, 0, 0, 8],
     });
 
-    const tableHeader = (text: string) => ({
+    const tableHeader = (text: string, bold = true) => ({
       text,
-      bold: true,
-      fontSize: 7,
+      bold,
+      fontSize: 6.5,
       alignment: 'center',
     });
 
-    const cell = (text: string) => ({
+    const cell = (text: string, bold = false) => ({
       text,
-      fontSize: 7,
+      fontSize: 6.5,
+      bold,
     });
 
     return [
@@ -532,32 +533,36 @@ export async function generateAndDownloadZipDC3(
           {
             width: '50%',
             table: {
-              widths: ['auto', '*'],
+              widths: [30, '*'],
               body: [
-                [tableHeader('CLAVE'), tableHeader('DENOMINACIÓN')],
-                [cell('1'), cell('Cultivo, crianza y aprovechamiento')],
+                [tableHeader('VE DEL ÁREA/SUBÁ'), tableHeader('DENOMINACIÓN')],
+                [cell('1', true), cell('Cultivo, crianza y aprovechamiento')],
                 [cell('1.1'), cell('Agricultura y silvicultura')],
                 [cell('1.2'), cell('Ganadería')],
                 [cell('1.3'), cell('Pesca y acuacultura')],
-                [cell('2'), cell('Extracción y suministro')],
+                [cell(''), cell('')],
+                [cell('2', true), cell('Extracción y suministro')],
                 [cell('2.1'), cell('Exploración')],
                 [cell('2.2'), cell('Extracción')],
                 [cell('2.3'), cell('Refinación y beneficio')],
                 [cell('2.4'), cell('Provisión de energía')],
                 [cell('2.5'), cell('Provisión de agua')],
-                [cell('3'), cell('Construcción')],
+                [cell(''), cell('')],
+                [cell('3', true), cell('Construcción')],
                 [cell('3.1'), cell('Planeación y dirección de obras')],
                 [cell('3.2'), cell('Edificación y urbanización')],
                 [cell('3.3'), cell('Acabado')],
                 [cell('3.4'), cell('Instalación y mantenimiento')],
-                [cell('4'), cell('Tecnología')],
+                [cell(''), cell('')],
+                [cell('4', true), cell('Tecnología')],
                 [cell('4.1'), cell('Mecánica')],
                 [cell('4.2'), cell('Electricidad')],
                 [cell('4.3'), cell('Electrónica')],
                 [cell('4.4'), cell('Informática')],
                 [cell('4.5'), cell('Telecomunicaciones')],
                 [cell('4.6'), cell('Procesos industriales')],
-                [cell('5'), cell('Procesamiento y fabricación')],
+                [cell(''), cell('')],
+                [cell('5', true), cell('Procesamiento y fabricación')],
                 [cell('5.1'), cell('Minerales no metálicos')],
                 [cell('5.2'), cell('Metales')],
                 [cell('5.3'), cell('Alimentos y bebidas')],
@@ -569,22 +574,28 @@ export async function generateAndDownloadZipDC3(
                 [cell('5.9'), cell('Productos impresos')],
               ],
             },
-            layout: 'lightHorizontalLines',
+            layout: {
+              hLineWidth: () => 0.3,
+              vLineWidth: () => 0.3,
+              hLineColor: () => '#cccccc',
+              vLineColor: () => '#cccccc',
+            },
           },
 
           {
             width: '50%',
             table: {
-              widths: ['auto', '*'],
+              widths: [30, '*'],
               body: [
-                [tableHeader('CLAVE'), tableHeader('DENOMINACIÓN')],
-                [cell('6'), cell('Transporte')],
+                [tableHeader('VE DEL ÁREA/SUBÁ'), tableHeader('DENOMINACIÓN')],
+                [cell('6', true), cell('Transporte')],
                 [cell('6.1'), cell('Ferroviario')],
                 [cell('6.2'), cell('Autotransporte')],
                 [cell('6.3'), cell('Aéreo')],
                 [cell('6.4'), cell('Marítimo y fluvial')],
                 [cell('6.5'), cell('Servicios de apoyo')],
-                [cell('7'), cell('Provisión de bienes y servicios')],
+                [cell(''), cell('')],
+                [cell('7', true), cell('Provisión de bienes y servicios')],
                 [cell('7.1'), cell('Comercio')],
                 [cell('7.2'), cell('Alimentación y hospedaje')],
                 [cell('7.3'), cell('Turismo')],
@@ -593,49 +604,65 @@ export async function generateAndDownloadZipDC3(
                 [cell('7.6'), cell('Reparación de artículos de uso doméstico y personal')],
                 [cell('7.7'), cell('Limpieza')],
                 [cell('7.8'), cell('Servicio postal y mensajería')],
-                [cell('8'), cell('Gestión y soporte administrativo')],
+                [cell(''), cell('')],
+                [cell('8', true), cell('Gestión y soporte administrativo')],
                 [cell('8.1'), cell('Bolsa, banca y seguros')],
                 [cell('8.2'), cell('Administración')],
                 [cell('8.3'), cell('Servicios legales')],
-                [cell('9'), cell('Salud y protección social')],
+                [cell(''), cell('')],
+                [cell('9', true), cell('Salud y protección social')],
                 [cell('9.1'), cell('Servicios médicos')],
                 [cell('9.2'), cell('Inspección sanitaria y del medio ambiente')],
                 [cell('9.3'), cell('Seguridad social')],
                 [cell('9.4'), cell('Protección de bienes y/o personas')],
-                [cell('10'), cell('Comunicación')],
+                [cell(''), cell('')],
+                [cell('10', true), cell('Comunicación')],
                 [cell('10.1'), cell('Publicación')],
                 [cell('10.2'), cell('Radio, cine, televisión y teatro')],
                 [cell('10.3'), cell('Interpretación artística')],
                 [cell('10.4'), cell('Traducción e interpretación lingüística')],
                 [cell('10.5'), cell('Publicidad, propaganda y relaciones públicas')],
-                [cell('11'), cell('Desarrollo y extensión del conocimiento')],
+                [cell(''), cell('')],
+                [cell('11', true), cell('Desarrollo y extensión del conocimiento')],
                 [cell('11.1'), cell('Investigación')],
                 [cell('11.2'), cell('Enseñanza')],
                 [cell('11.3'), cell('Difusión cultural')],
               ],
             },
-            layout: 'lightHorizontalLines',
+            layout: {
+              hLineWidth: () => 0.3,
+              vLineWidth: () => 0.3,
+              hLineColor: () => '#cccccc',
+              vLineColor: () => '#cccccc',
+            },
           },
         ],
-        columnGap: 10,
-        margin: [0, 5, 0, 10],
+        columnGap: 8,
+        margin: [0, 0, 0, 12],
       },
 
       title('CLAVES Y DENOMINACIONES DEL CATÁLOGO DE ÁREAS TEMÁTICAS DE LOS CURSOS'),
 
       {
         table: {
-          widths: ['auto', '*', 'auto', '*'],
+          widths: [50, '*', 50, '*'],
           body: [
+            [tableHeader('CLAVE DEL ÁREA'), tableHeader('DENOMINACIÓN'), tableHeader('CLAVE DEL ÁREA'), tableHeader('DENOMINACIÓN')],
             [cell('1000'), cell('Producción general'), cell('6000'), cell('Seguridad')],
             [cell('2000'), cell('Servicios'), cell('7000'), cell('Desarrollo personal y familiar')],
             [cell('3000'), cell('Administración, contabilidad y economía'), cell('8000'), cell('Uso de tecnologías de la información y comunicación')],
-            [cell('4000'), cell('Comercialización'), cell('9000'), cell('Participación social')],
-            [cell('5000'), cell('Mantenimiento y reparación'), '', ''],
+            [cell('4000'), cell('Comercialización'), cell('9000'), cell('Participación Social')],
+            [cell('5000'), cell('Mantenimiento y reparación'), cell(''), cell('')],
           ],
         },
-        layout: 'lightHorizontalLines',
-        fontSize: 7,
+        layout: {
+          hLineWidth: () => 0.3,
+          vLineWidth: () => 0.3,
+          hLineColor: () => '#cccccc',
+          vLineColor: () => '#cccccc',
+        },
+        fontSize: 6.5,
+        margin: [0, 0, 0, 15],
       },
 
       {
@@ -643,7 +670,7 @@ export async function generateAndDownloadZipDC3(
         alignment: 'right',
         fontSize: 7,
         bold: true,
-        margin: [0, 10, 0, 0],
+        margin: [0, 0, 0, 0],
       },
     ];
   }

@@ -89,9 +89,9 @@ export function ConstanciasEmpresaPage() {
     const isIndividualSubmitDisabled = () => {
         const v = individualForm.values;
         // campos mínimos: trainer, nombre, curp, puesto_trabajo
-    if (!v.trainer || !v.nombre || !v.curp || !v.puesto_trabajo) return true;
-    // representantes también requeridos
-    if (!v.repLegal || !v.repTrabajadores) return true;
+        if (!v.trainer || !v.nombre || !v.curp || !v.puesto_trabajo) return true;
+        // representantes también requeridos
+        if (!v.repLegal || !v.repTrabajadores) return true;
         const selected = Array.isArray(v.courses_ids) ? v.courses_ids : [];
         if (selected.length === 0) return true;
         // por cada curso seleccionado, debe existir fecha inicio y fin
@@ -138,7 +138,7 @@ export function ConstanciasEmpresaPage() {
             // crear la constancia: primero enviar una copia sanitizada (sin cursos)
             const sanitized = JSON.parse(JSON.stringify(payload));
             const preserved = JSON.parse(JSON.stringify(payload));
-  
+
             const createdAny: any = await BasicPetition({ endpoint: '/certificate', method: 'POST', data: sanitized, showNotifications: false });
             const certId = createdAny?._id ?? createdAny?.id ?? (Array.isArray(createdAny) && createdAny.length > 0 ? (createdAny[0]?._id ?? createdAny[0]?.id) : null);
             showNotification({ title: 'Enviado', message: 'Constancia individual creada (desde preview)', color: 'green' });
@@ -365,7 +365,7 @@ export function ConstanciasEmpresaPage() {
                 return 'GRUPAL';
             }
         },
-    
+
         {
             accessor: 'estado',
             label: 'Estado',
@@ -540,7 +540,7 @@ export function ConstanciasEmpresaPage() {
 
             // Obtener todos los cursos asociados
             const certificateCourses = Array.isArray(raw?.certificate_courses) ? raw.certificate_courses : [];
-            
+
             // Si no hay cursos asociados, usar datos del certificado principal
             if (certificateCourses.length === 0) {
                 const courseNameFromCertificate = raw?.course_name ?? raw?.course?.name ?? "";
@@ -715,7 +715,7 @@ export function ConstanciasEmpresaPage() {
                 styles: { title: { fontSize: 14, bold: true, alignment: "center" } },
                 defaultStyle: { fontSize: 9 },
             };
-            
+
             pdfMake.createPdf(docDefinition).download(`lista_${raw._id ?? "lista"}.pdf`);
         } catch (err) {
             showNotification({
@@ -844,46 +844,46 @@ export function ConstanciasEmpresaPage() {
     };
 
     return (
-         <Container size="lg" py="lg">
+        <Container size="lg" py="lg">
 
-                {/* TÍTULO */}
-                <Title order={1} mb="sm">Constancias</Title>
+            {/* TÍTULO */}
+            <Title order={1} mb="sm">Constancias</Title>
 
-                <Text color="dimmed" mb="md">
-                    En esta sección podrás ver las lista de peticiones y estatus para constancias
-                </Text>
+            <Text color="dimmed" mb="md">
+                En esta sección podrás ver las lista de peticiones y estatus para constancias
+            </Text>
 
-                {/* BOTÓN DE AÑADIR */}
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 12, alignItems: 'center' }}>
-                    <Button
-                        onClick={() => setOpened(true)}
-                        aria-label="Crear constancias grupal"
-                        style={{ backgroundColor: 'var(--olive-green)', color: 'white', transition: 'filter 120ms ease, transform 120ms ease', filter: addHoverGroup ? 'brightness(0.9)' : 'none', display: 'flex', alignItems: 'center', gap: 8 }}
-                        onMouseEnter={() => setAddHoverGroup(true)}
-                        onMouseLeave={() => setAddHoverGroup(false)}
-                    >
-                        <FaPlus />
-                        <span>Grupal</span>
-                    </Button>
-                    <Button
-                        onClick={() => setOpenedIndividual(true)}
-                        aria-label="Crear constancia individual"
-                        style={{ backgroundColor: 'var(--olive-green)', color: 'white', transition: 'filter 120ms ease, transform 120ms ease', filter: addHoverIndividual ? 'brightness(0.9)' : 'none', display: 'flex', alignItems: 'center', gap: 8 }}
-                        onMouseEnter={() => setAddHoverIndividual(true)}
-                        onMouseLeave={() => setAddHoverIndividual(false)}
-                    >
-                        <FaPlus />
-                        <span>Individual</span>
-                    </Button>
-                </div>
+            {/* BOTÓN DE AÑADIR */}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 12, alignItems: 'center' }}>
+                <Button
+                    onClick={() => setOpened(true)}
+                    aria-label="Crear constancias grupal"
+                    style={{ backgroundColor: 'var(--olive-green)', color: 'white', transition: 'filter 120ms ease, transform 120ms ease', filter: addHoverGroup ? 'brightness(0.9)' : 'none', display: 'flex', alignItems: 'center', gap: 8 }}
+                    onMouseEnter={() => setAddHoverGroup(true)}
+                    onMouseLeave={() => setAddHoverGroup(false)}
+                >
+                    <FaPlus />
+                    <span>Grupal</span>
+                </Button>
+                <Button
+                    onClick={() => setOpenedIndividual(true)}
+                    aria-label="Crear constancia individual"
+                    style={{ backgroundColor: 'var(--olive-green)', color: 'white', transition: 'filter 120ms ease, transform 120ms ease', filter: addHoverIndividual ? 'brightness(0.9)' : 'none', display: 'flex', alignItems: 'center', gap: 8 }}
+                    onMouseEnter={() => setAddHoverIndividual(true)}
+                    onMouseLeave={() => setAddHoverIndividual(false)}
+                >
+                    <FaPlus />
+                    <span>Individual</span>
+                </Button>
+            </div>
 
-                {/* TABLA */}
-                <ResponsiveDataTable
-                    columns={columns}
-                    data={rows}
-                    initialPageSize={10}
-                    actions={(row) => (
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center'}}>
+            {/* TABLA */}
+            <ResponsiveDataTable
+                columns={columns}
+                data={rows}
+                initialPageSize={10}
+                actions={(row) => (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
                         <Button
                             onClick={() => handleGenerar(row)}
                             disabled={row.estado === 'pendiente'}
@@ -893,448 +893,455 @@ export function ConstanciasEmpresaPage() {
                             Constancias
                         </Button>
                         <Button
-                            onClick={() => void generateLista(row)}
-                            className={`action-btn small-action-btn`}
-                            style={{ background: row.estado === 'pendiente' ? '#cccccc' : 'var(--olive-green)', color: row.estado === 'pendiente' ? '#666666' : 'white' }}
+                            style={{
+                                backgroundColor: 'var(--olive-green)',
+                                color: 'white',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                transition: 'filter 120ms ease, transform 120ms ease',
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(0.9)')}
+                            onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
                         >
                             Lista
                         </Button>
-                        </div>
-                    )}
-                />
+                    </div>
+                )}
+            />
 
 
-                {/* MODAL */}
-                <Modal
-                    opened={opened}
-                    onClose={() => setOpened(false)}
-                    title="Nueva petición de constancias"
-                    centered
-                    size="lg"
-                    styles={{
-                        content: { maxWidth: 720, margin: 16 },
-                        body: { maxHeight: "60vh", overflow: "auto" },
+            {/* MODAL */}
+            <Modal
+                opened={opened}
+                onClose={() => setOpened(false)}
+                title="Nueva petición de constancias"
+                centered
+                size="lg"
+                styles={{
+                    content: { maxWidth: 720, margin: 16 },
+                    body: { maxHeight: "60vh", overflow: "auto" },
+                }}
+            >
+                <form
+                    onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (isSubmitDisabled()) {
+                            showNotification({ title: 'Error', message: 'Completa los campos requeridos y sube el Excel', color: 'red' });
+                            return;
+                        }
+
+                        // extraer id del usuario del token JWT (mi_app_token)
+                        const token = localStorage.getItem('mi_app_token') ?? null;
+                        const parseJwt = (t: string | null) => {
+                            if (!t) return null;
+                            try {
+                                const part = t.split('.')[1];
+                                const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
+                                const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+                                return JSON.parse(jsonPayload);
+                            } catch (e) {
+                                return null;
+                            }
+                        };
+
+                        const parsedToken = parseJwt(token);
+                        const certificate_user_id = parsedToken?.['_id'] ?? parsedToken?.id ?? parsedToken?.sub ?? null;
+                        if (!certificate_user_id) {
+                            showNotification({ title: 'Error', message: 'No se pudo obtener el id del usuario desde el token', color: 'red' });
+                            return;
+                        }
+
+                        const trainer_id = form.values.capacitador ?? selectedTrainerId ?? null;
+                        if (!trainer_id) {
+                            showNotification({ title: 'Error', message: 'Selecciona un capacitador válido', color: 'red' });
+                            return;
+                        }
+
+                        // validar y construir courses_id como array de GUIDs (o ObjectId 24 hex)
+                        const rawCourseVal = form.values.curso ?? '';
+                        const mappedCourse = courseValueMap[String(rawCourseVal)];
+                        const candidateCourseId = (mappedCourse !== undefined && mappedCourse !== null) ? String(mappedCourse) : String(rawCourseVal);
+                        const uuidRegex = /^(?:[0-9a-fA-F]{24}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/;
+                        if (!candidateCourseId || !uuidRegex.test(candidateCourseId)) {
+                            showNotification({ title: 'Error', message: 'Selecciona un curso válido (id de curso).', color: 'red' });
+                            return;
+                        }
+
+                        const payload = {
+                            certificate_user_id,
+                            trainer_id,
+                            legal_representative: form.values.repLegal ?? '',
+                            workers_representative: form.values.repTrabajadores ?? '',
+                            // NO incluir fechas globales en el xlsx_object: enviar los cursantes tal cual
+                            xlsx_object: (() => {
+                                const base = parsedXlsxObject?.xlsx_object ?? { cursantes: [] };
+                                const cursantes = Array.isArray(base.cursantes) ? base.cursantes.map((c: any) => ({ ...c })) : [];
+                                return { ...base, cursantes };
+                            })(),
+                            status: 'PENDIENTE',
+                        };
+
+                        // Enviar directamente
+                        await sendGroupPayload(payload);
                     }}
                 >
-                    <form
-                        onSubmit={async (e) => {
-                            e.preventDefault();
-                            if (isSubmitDisabled()) {
-                                showNotification({ title: 'Error', message: 'Completa los campos requeridos y sube el Excel', color: 'red' });
-                                return;
-                            }
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
 
-                            // extraer id del usuario del token JWT (mi_app_token)
-                            const token = localStorage.getItem('mi_app_token') ?? null;
-                            const parseJwt = (t: string | null) => {
-                                if (!t) return null;
-                                try {
-                                    const part = t.split('.')[1];
-                                    const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
-                                    const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-                                    return JSON.parse(jsonPayload);
-                                } catch (e) {
-                                    return null;
+                        {/* DESCARGA + EXCEL */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <a href="https://docs.google.com/spreadsheets/d/1Gt1WBk3wUe0J7FCTwYo66T4eoc0YgICk7-puCevlAPQ/copy" target="_blank" rel="noopener noreferrer" style={{ fontSize: 14 }}>Plantilla</a>
+                            <FileInput
+                                label="Subir archivo Excel"
+                                placeholder="Selecciona archivo"
+                                leftSection={<FaFileUpload />}
+                                accept=".xls,.xlsx"
+                                value={form.values.excelFile}
+                                onChange={(file) => { form.setFieldValue('excelFile', file); void handleExcelUpload(file); }}
+                            />
+                        </div>
+
+                        <Select
+                            label="Capacitador"
+                            data={capacitadorOptions}
+                            value={form.values.capacitador}
+                            onChange={(v) => {
+                                form.setFieldValue('capacitador', v ?? '');
+                                setSelectedTrainerId(v ?? null);
+                                // actualizar cursos disponibles
+                                const trainer = trainers.find(t => t._id === v);
+                                const trainerCourses = (trainer?.trainer_courses ?? []);
+                                // preferir course._id (GUID) -> course.id -> course.course_id
+                                const courseOptsRaw = trainerCourses.map((tc: any) => ({ value: String(tc.course?._id ?? tc.course?.id ?? tc.course?.course_id ?? tc.course_id ?? ''), label: tc.course?.name ?? 'Curso' }));
+
+                                // Eliminar duplicados usando Set
+                                const seen = new Set<string>();
+                                const courseOpts = courseOptsRaw.filter((opt: any) => {
+                                    if (!opt.value || seen.has(opt.value)) return false;
+                                    seen.add(opt.value);
+                                    return true;
+                                });
+
+                                // construir mapa value -> preferred id (puede ser GUID o otro identificador)
+                                const map: Record<string, string | number> = {};
+                                for (const tc of trainerCourses) {
+                                    const preferred = tc.course?._id ?? tc.course?.id ?? tc.course?.course_id ?? tc.course_id ?? '';
+                                    if (!preferred) continue;
+                                    const value = String(preferred);
+                                    if (!map[value]) map[value] = preferred;
                                 }
-                            };
+                                setCourseValueMap(map);
+                                if (!courseOpts || courseOpts.length === 0) {
+                                    setCoursesOptions([{ value: '', label: 'Sin cursos disponibles' }]);
+                                    setCoursesDisabled(true);
+                                    form.setFieldValue('curso', '');
+                                } else {
+                                    setCoursesOptions(courseOpts);
+                                    setCoursesDisabled(false);
+                                    if (courseOpts.length === 1) form.setFieldValue('curso', courseOpts[0].value);
+                                }
+                            }}
+                        />
 
-                            const parsedToken = parseJwt(token);
-                            const certificate_user_id = parsedToken?.['_id'] ?? parsedToken?.id ?? parsedToken?.sub ?? null;
-                            if (!certificate_user_id) {
-                                showNotification({ title: 'Error', message: 'No se pudo obtener el id del usuario desde el token', color: 'red' });
+                        <Select
+                            label="Curso"
+                            data={coursesOptions}
+                            value={form.values.curso}
+                            onChange={(v) => form.setFieldValue('curso', v ?? '')}
+                            disabled={coursesDisabled}
+                            placeholder={coursesDisabled ? 'Sin cursos disponibles' : 'Selecciona un curso'}
+                        />
+
+                        {/* FECHAS */}
+                        <div style={{ display: "flex", gap: 8 }}>
+                            <TextInput type="date" label="Fecha inicio" {...form.getInputProps("fechaInicio")} />
+                            <TextInput type="date" label="Fecha fin" {...form.getInputProps("fechaFin")} />
+                        </div>
+
+                        {/* REPRESENTANTES */}
+                        <TextInput
+                            label="Representante legal"
+                            value={form.values.repLegal}
+                            onChange={(e) => form.setFieldValue('repLegal', String(e.currentTarget.value).toUpperCase())}
+                            onBlur={() => form.setFieldValue('repLegal', String(form.values.repLegal ?? '').toUpperCase())}
+                        />
+                        <TextInput
+                            label="Representante de los trabajadores"
+                            value={form.values.repTrabajadores}
+                            onChange={(e) => form.setFieldValue('repTrabajadores', String(e.currentTarget.value).toUpperCase())}
+                            onBlur={() => form.setFieldValue('repTrabajadores', String(form.values.repTrabajadores ?? '').toUpperCase())}
+                        />
+
+                        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                            <Button type="submit" disabled={isSubmitDisabled() || groupSending} loading={groupSending} style={{ background: (isSubmitDisabled() || groupSending) ? '#cccccc' : 'var(--olive-green)' }}>
+                                Enviar
+                            </Button>
+                        </div>
+
+                    </div>
+                </form>
+            </Modal>
+
+            {/* MODAL INDIVIDUAL */}
+            <Modal
+                opened={openedIndividual}
+                onClose={() => setOpenedIndividual(false)}
+                title="Nueva constancia individual"
+                centered
+                size="xl"
+            >
+                <form
+                    onSubmit={async (e) => {
+                        e.preventDefault();
+
+                        const token = localStorage.getItem('mi_app_token') ?? null;
+                        const parseJwt = (t: string | null) => {
+                            if (!t) return null;
+                            try {
+                                const part = t.split('.')[1];
+                                const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
+                                const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+                                return JSON.parse(jsonPayload);
+                            } catch (e) {
+                                return null;
+                            }
+                        };
+
+                        const parsedToken = parseJwt(token);
+                        const certificate_user_id = parsedToken?.['_id'] ?? parsedToken?.id ?? parsedToken?.sub ?? null;
+                        if (!certificate_user_id) {
+                            showNotification({ title: 'Error', message: 'No se pudo obtener el id del usuario desde el token', color: 'red' });
+                            return;
+                        }
+
+                        const trainer_id = individualForm.values.trainer ?? null;
+                        if (!trainer_id) {
+                            showNotification({ title: 'Error', message: 'Selecciona un capacitador', color: 'red' });
+                            return;
+                        }
+
+                        // defensiva: validar representantes antes de construir payload
+                        if (!individualForm.values.repLegal || !individualForm.values.repTrabajadores) {
+                            showNotification({ title: 'Error', message: 'Debes proporcionar los representantes (legal y de trabajadores)', color: 'red' });
+                            return;
+                        }
+
+                        // construir xlsx_object con un solo cursante basado en los campos
+                        // y añadir por curso las fechas seleccionadas
+                        const cursanteBase: any = {
+                            nombre: individualForm.values.nombre ?? '',
+                            curp: individualForm.values.curp ?? '',
+                            puesto_trabajo: individualForm.values.puesto_trabajo ?? '',
+                            ocupacion_especifica: individualForm.values.ocupacion_especifica ?? '',
+                        };
+
+                        const rawSelected = (individualForm.values.courses_ids || []).filter((c: any) => c !== null && c !== undefined && String(c).trim() !== '');
+                        const uuidRegex = /^(?:[0-9a-fA-F]{24}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/;
+                        const selectedCourses = rawSelected.map((v: any) => {
+                            const mapped = courseValueMap[String(v)];
+                            return (mapped !== undefined && mapped !== null) ? String(mapped) : String(v);
+                        }).map((s: any) => String(s).trim()).filter((s: string) => uuidRegex.test(s));
+
+
+                        const cursante = { ...cursanteBase };
+
+                        if (!selectedCourses || selectedCourses.length === 0) {
+                            showNotification({ title: 'Error', message: 'Selecciona al menos un curso válido (id de curso)', color: 'red' });
+                            return;
+                        }
+
+                        // defensiva: validar fechas por curso
+                        for (const cid of selectedCourses) {
+                            const dates = individualCourseDates[cid] ?? { start: '', end: '' };
+                            if (!dates.start || !dates.end) {
+                                showNotification({ title: 'Error', message: 'Cada curso seleccionado debe tener fecha inicio y fin', color: 'red' });
                                 return;
                             }
+                        }
 
-                            const trainer_id = form.values.capacitador ?? selectedTrainerId ?? null;
-                            if (!trainer_id) {
-                                showNotification({ title: 'Error', message: 'Selecciona un capacitador válido', color: 'red' });
-                                return;
-                            }
+                        // Construir payload SIN courses_id ni fechas top-level. Las asociaciones se harán en la llamada bulk posterior.
+                        const payload = {
+                            certificate_user_id,
+                            trainer_id,
+                            legal_representative: individualForm.values.repLegal ?? '',
+                            workers_representative: individualForm.values.repTrabajadores ?? '',
+                            xlsx_object: { cursantes: [cursante], area_tematica: parsedXlsxObject?.xlsx_object?.area_tematica ?? undefined },
+                            status: 'PENDIENTE',
+                        } as any;
 
-                            // validar y construir courses_id como array de GUIDs (o ObjectId 24 hex)
-                            const rawCourseVal = form.values.curso ?? '';
-                            const mappedCourse = courseValueMap[String(rawCourseVal)];
-                            const candidateCourseId = (mappedCourse !== undefined && mappedCourse !== null) ? String(mappedCourse) : String(rawCourseVal);
-                            const uuidRegex = /^(?:[0-9a-fA-F]{24}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/;
-                            if (!candidateCourseId || !uuidRegex.test(candidateCourseId)) {
-                                showNotification({ title: 'Error', message: 'Selecciona un curso válido (id de curso).', color: 'red' });
-                                return;
-                            }
-
-                            const payload = {
-                                certificate_user_id,
-                                trainer_id,
-                                legal_representative: form.values.repLegal ?? '',
-                                workers_representative: form.values.repTrabajadores ?? '',
-                                // NO incluir fechas globales en el xlsx_object: enviar los cursantes tal cual
-                                xlsx_object: (() => {
-                                    const base = parsedXlsxObject?.xlsx_object ?? { cursantes: [] };
-                                    const cursantes = Array.isArray(base.cursantes) ? base.cursantes.map((c: any) => ({ ...c })) : [];
-                                    return { ...base, cursantes };
-                                })(),
-                                status: 'PENDIENTE',
-                            };
-
-                            // Enviar directamente
-                            await sendGroupPayload(payload);
-                        }}
-                    >
-                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-
-                            {/* DESCARGA + EXCEL */}
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <a href="https://docs.google.com/spreadsheets/d/1Gt1WBk3wUe0J7FCTwYo66T4eoc0YgICk7-puCevlAPQ/copy" target="_blank" rel="noopener noreferrer" style={{ fontSize: 14 }}>Plantilla</a>
-                                <FileInput
-                                    label="Subir archivo Excel"
-                                    placeholder="Selecciona archivo"
-                                    leftSection={<FaFileUpload />}
-                                    accept=".xls,.xlsx"
-                                    value={form.values.excelFile}
-                                    onChange={(file) => { form.setFieldValue('excelFile', file); void handleExcelUpload(file); }}
-                                />
-                            </div>
-
-                            <Select
-                                label="Capacitador"
-                                data={capacitadorOptions}
-                                value={form.values.capacitador}
-                                onChange={(v) => {
-                                    form.setFieldValue('capacitador', v ?? '');
-                                    setSelectedTrainerId(v ?? null);
-                                    // actualizar cursos disponibles
+                        // Enviar directamente
+                        await sendIndividualPayload(payload);
+                    }}
+                >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <Select
+                            label="Capacitador"
+                            data={capacitadorOptions}
+                            value={individualForm.values.trainer}
+                            onChange={(v) => {
+                                try {
+                                    individualForm.setFieldValue('trainer', v ?? '');
+                                    // actualizar opciones de cursos según el capacitador seleccionado
                                     const trainer = trainers.find(t => t._id === v);
-                                    const trainerCourses = (trainer?.trainer_courses ?? []);
+                                    const trainerCourses = Array.isArray(trainer?.trainer_courses) ? trainer.trainer_courses : [];
+
                                     // preferir course._id (GUID) -> course.id -> course.course_id
-                                    const courseOptsRaw = trainerCourses.map((tc: any) => ({ value: String(tc.course?._id ?? tc.course?.id ?? tc.course?.course_id ?? tc.course_id ?? ''), label: tc.course?.name ?? 'Curso' }));
-                                    
+                                    const courseOptsRaw = trainerCourses
+                                        .filter((tc: any) => tc && tc.course) // filtrar cursos inválidos
+                                        .map((tc: any) => {
+                                            const courseId = tc.course?._id ?? tc.course?.id ?? tc.course?.course_id ?? tc.course_id ?? '';
+                                            const courseName = tc.course?.name ?? 'Curso sin nombre';
+                                            return {
+                                                value: String(courseId),
+                                                label: courseName
+                                            };
+                                        })
+                                        .filter((opt: any) => opt.value); // eliminar opciones sin ID
+
                                     // Eliminar duplicados usando Set
                                     const seen = new Set<string>();
                                     const courseOpts = courseOptsRaw.filter((opt: any) => {
-                                        if (!opt.value || seen.has(opt.value)) return false;
+                                        if (seen.has(opt.value)) return false;
                                         seen.add(opt.value);
                                         return true;
                                     });
-                                    
-                                    // construir mapa value -> preferred id (puede ser GUID o otro identificador)
+
                                     const map: Record<string, string | number> = {};
                                     for (const tc of trainerCourses) {
+                                        if (!tc || !tc.course) continue;
                                         const preferred = tc.course?._id ?? tc.course?.id ?? tc.course?.course_id ?? tc.course_id ?? '';
                                         if (!preferred) continue;
                                         const value = String(preferred);
                                         if (!map[value]) map[value] = preferred;
                                     }
                                     setCourseValueMap(map);
+
                                     if (!courseOpts || courseOpts.length === 0) {
                                         setCoursesOptions([{ value: '', label: 'Sin cursos disponibles' }]);
                                         setCoursesDisabled(true);
-                                        form.setFieldValue('curso', '');
+                                        individualForm.setFieldValue('courses_ids', []);
                                     } else {
                                         setCoursesOptions(courseOpts);
                                         setCoursesDisabled(false);
-                                        if (courseOpts.length === 1) form.setFieldValue('curso', courseOpts[0].value);
                                     }
-                                }}
-                            />
-
-                            <Select
-                                label="Curso"
-                                data={coursesOptions}
-                                value={form.values.curso}
-                                onChange={(v) => form.setFieldValue('curso', v ?? '')}
-                                disabled={coursesDisabled}
-                                placeholder={coursesDisabled ? 'Sin cursos disponibles' : 'Selecciona un curso'}
-                            />
-
-                            {/* FECHAS */}
-                            <div style={{ display: "flex", gap: 8 }}>
-                                <TextInput type="date" label="Fecha inicio" {...form.getInputProps("fechaInicio")} />
-                                <TextInput type="date" label="Fecha fin" {...form.getInputProps("fechaFin")} />
-                            </div>
-
-                            {/* REPRESENTANTES */}
-                            <TextInput
-                                label="Representante legal"
-                                value={form.values.repLegal}
-                                onChange={(e) => form.setFieldValue('repLegal', String(e.currentTarget.value).toUpperCase())}
-                                onBlur={() => form.setFieldValue('repLegal', String(form.values.repLegal ?? '').toUpperCase())}
-                            />
-                            <TextInput
-                                label="Representante de los trabajadores"
-                                value={form.values.repTrabajadores}
-                                onChange={(e) => form.setFieldValue('repTrabajadores', String(e.currentTarget.value).toUpperCase())}
-                                onBlur={() => form.setFieldValue('repTrabajadores', String(form.values.repTrabajadores ?? '').toUpperCase())}
-                            />
-
-                                <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                                    <Button type="submit" disabled={isSubmitDisabled() || groupSending} loading={groupSending} style={{ background: (isSubmitDisabled() || groupSending) ? '#cccccc' : 'var(--olive-green)' }}>
-                                        Enviar
-                                    </Button>
-                                </div>
-
-                        </div>
-                    </form>
-                </Modal>
-
-                {/* MODAL INDIVIDUAL */}
-                <Modal
-                    opened={openedIndividual}
-                    onClose={() => setOpenedIndividual(false)}
-                    title="Nueva constancia individual"
-                    centered
-                    size="xl"
-                >
-                    <form
-                        onSubmit={async (e) => {
-                            e.preventDefault();
-
-                            const token = localStorage.getItem('mi_app_token') ?? null;
-                            const parseJwt = (t: string | null) => {
-                                if (!t) return null;
-                                try {
-                                    const part = t.split('.')[1];
-                                    const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
-                                    const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-                                    return JSON.parse(jsonPayload);
-                                } catch (e) {
-                                    return null;
+                                } catch (error) {
+                                    setCoursesOptions([{ value: '', label: 'Error cargando cursos' }]);
+                                    setCoursesDisabled(true);
+                                    individualForm.setFieldValue('courses_ids', []);
                                 }
-                            };
+                            }}
+                        />
 
-                            const parsedToken = parseJwt(token);
-                            const certificate_user_id = parsedToken?.['_id'] ?? parsedToken?.id ?? parsedToken?.sub ?? null;
-                            if (!certificate_user_id) {
-                                showNotification({ title: 'Error', message: 'No se pudo obtener el id del usuario desde el token', color: 'red' });
-                                return;
-                            }
-
-                            const trainer_id = individualForm.values.trainer ?? null;
-                            if (!trainer_id) {
-                                showNotification({ title: 'Error', message: 'Selecciona un capacitador', color: 'red' });
-                                return;
-                            }
-
-                            // defensiva: validar representantes antes de construir payload
-                            if (!individualForm.values.repLegal || !individualForm.values.repTrabajadores) {
-                                showNotification({ title: 'Error', message: 'Debes proporcionar los representantes (legal y de trabajadores)', color: 'red' });
-                                return;
-                            }
-
-                            // construir xlsx_object con un solo cursante basado en los campos
-                            // y añadir por curso las fechas seleccionadas
-                            const cursanteBase: any = {
-                                nombre: individualForm.values.nombre ?? '',
-                                curp: individualForm.values.curp ?? '',
-                                puesto_trabajo: individualForm.values.puesto_trabajo ?? '',
-                                ocupacion_especifica: individualForm.values.ocupacion_especifica ?? '',
-                            };
-
-                            const rawSelected = (individualForm.values.courses_ids || []).filter((c: any) => c !== null && c !== undefined && String(c).trim() !== '');
-                            const uuidRegex = /^(?:[0-9a-fA-F]{24}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/;
-                            const selectedCourses = rawSelected.map((v: any) => {
-                                const mapped = courseValueMap[String(v)];
-                                return (mapped !== undefined && mapped !== null) ? String(mapped) : String(v);
-                            }).map((s: any) => String(s).trim()).filter((s: string) => uuidRegex.test(s));
-
-                        
-                            const cursante = { ...cursanteBase };
-
-                            if (!selectedCourses || selectedCourses.length === 0) {
-                                showNotification({ title: 'Error', message: 'Selecciona al menos un curso válido (id de curso)', color: 'red' });
-                                return;
-                            }
-
-                            // defensiva: validar fechas por curso
-                            for (const cid of selectedCourses) {
-                                const dates = individualCourseDates[cid] ?? { start: '', end: '' };
-                                if (!dates.start || !dates.end) {
-                                    showNotification({ title: 'Error', message: 'Cada curso seleccionado debe tener fecha inicio y fin', color: 'red' });
-                                    return;
-                                }
-                            }
-
-                            // Construir payload SIN courses_id ni fechas top-level. Las asociaciones se harán en la llamada bulk posterior.
-                            const payload = {
-                                certificate_user_id,
-                                trainer_id,
-                                legal_representative: individualForm.values.repLegal ?? '',
-                                workers_representative: individualForm.values.repTrabajadores ?? '',
-                                xlsx_object: { cursantes: [cursante], area_tematica: parsedXlsxObject?.xlsx_object?.area_tematica ?? undefined },
-                                status: 'PENDIENTE',
-                            } as any;
-
-                            // Enviar directamente
-                            await sendIndividualPayload(payload);
-                        }}
-                    >
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            <Select
-                                label="Capacitador"
-                                data={capacitadorOptions}
-                                value={individualForm.values.trainer}
-                                onChange={(v) => {
-                                    try {
-                                        individualForm.setFieldValue('trainer', v ?? '');
-                                        // actualizar opciones de cursos según el capacitador seleccionado
-                                        const trainer = trainers.find(t => t._id === v);
-                                        const trainerCourses = Array.isArray(trainer?.trainer_courses) ? trainer.trainer_courses : [];
-                                        
-                                        // preferir course._id (GUID) -> course.id -> course.course_id
-                                        const courseOptsRaw = trainerCourses
-                                            .filter((tc: any) => tc && tc.course) // filtrar cursos inválidos
-                                            .map((tc: any) => {
-                                                const courseId = tc.course?._id ?? tc.course?.id ?? tc.course?.course_id ?? tc.course_id ?? '';
-                                                const courseName = tc.course?.name ?? 'Curso sin nombre';
-                                                return { 
-                                                    value: String(courseId), 
-                                                    label: courseName 
-                                                };
-                                            })
-                                            .filter((opt: any) => opt.value); // eliminar opciones sin ID
-                                        
-                                        // Eliminar duplicados usando Set
-                                        const seen = new Set<string>();
-                                        const courseOpts = courseOptsRaw.filter((opt: any) => {
-                                            if (seen.has(opt.value)) return false;
-                                            seen.add(opt.value);
-                                            return true;
-                                        });
-                                        
-                                        const map: Record<string, string | number> = {};
-                                        for (const tc of trainerCourses) {
-                                            if (!tc || !tc.course) continue;
-                                            const preferred = tc.course?._id ?? tc.course?.id ?? tc.course?.course_id ?? tc.course_id ?? '';
-                                            if (!preferred) continue;
-                                            const value = String(preferred);
-                                            if (!map[value]) map[value] = preferred;
-                                        }
-                                        setCourseValueMap(map);
-                                        
-                                        if (!courseOpts || courseOpts.length === 0) {
-                                            setCoursesOptions([{ value: '', label: 'Sin cursos disponibles' }]);
-                                            setCoursesDisabled(true);
-                                            individualForm.setFieldValue('courses_ids', []);
-                                        } else {
-                                            setCoursesOptions(courseOpts);
-                                            setCoursesDisabled(false);
-                                        }
-                                    } catch (error) {
-                                        setCoursesOptions([{ value: '', label: 'Error cargando cursos' }]);
-                                        setCoursesDisabled(true);
-                                        individualForm.setFieldValue('courses_ids', []);
-                                    }
-                                }}
-                            />
-
-                            <MultiSelect
-                                label="Cursos (selecciona uno o varios)"
-                                data={coursesOptions.map(c => ({ value: c.value, label: c.label }))}
-                                value={individualForm.values.courses_ids}
-                                onChange={(v) => {
-                                    individualForm.setFieldValue('courses_ids', v);
-                                    // asegurar entradas en individualCourseDates para cada curso seleccionado
-                                    setIndividualCourseDates((prev) => {
-                                        const copy = { ...(prev ?? {}) };
-                                        // agregar defaults para nuevos
-                                        (v ?? []).forEach((cid) => {
-                                            if (!copy[cid]) copy[cid] = { start: individualForm.values.fechaInicio ?? '', end: individualForm.values.fechaFin ?? '' };
-                                        });
-                                        // eliminar keys que ya no están seleccionadas
-                                        Object.keys(copy).forEach((k) => { if (!(v ?? []).includes(k)) delete copy[k]; });
-                                        return copy;
+                        <MultiSelect
+                            label="Cursos (selecciona uno o varios)"
+                            data={coursesOptions.map(c => ({ value: c.value, label: c.label }))}
+                            value={individualForm.values.courses_ids}
+                            onChange={(v) => {
+                                individualForm.setFieldValue('courses_ids', v);
+                                // asegurar entradas en individualCourseDates para cada curso seleccionado
+                                setIndividualCourseDates((prev) => {
+                                    const copy = { ...(prev ?? {}) };
+                                    // agregar defaults para nuevos
+                                    (v ?? []).forEach((cid) => {
+                                        if (!copy[cid]) copy[cid] = { start: individualForm.values.fechaInicio ?? '', end: individualForm.values.fechaFin ?? '' };
                                     });
-                                }}
-                                disabled={coursesDisabled}
-                            />
+                                    // eliminar keys que ya no están seleccionadas
+                                    Object.keys(copy).forEach((k) => { if (!(v ?? []).includes(k)) delete copy[k]; });
+                                    return copy;
+                                });
+                            }}
+                            disabled={coursesDisabled}
+                        />
 
-                            {/* Fechas por curso dinámicas */}
-                            {individualForm.values.courses_ids && individualForm.values.courses_ids.length > 0 && (
-                                <div style={{ border: '1px solid #eee', padding: 8, borderRadius: 6 }}>
-                                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Fechas por curso</div>
-                                    {(individualForm.values.courses_ids as string[]).map((cid) => {
-                                        const opt = coursesOptions.find(c => String(c.value) === String(cid));
-                                        return (
-                                            <div key={cid} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                                                <div style={{ width: '50%' }}>{opt ? opt.label : cid}</div>
-                                                <input
-                                                    type="date"
-                                                    value={individualCourseDates[cid]?.start ?? individualForm.values.fechaInicio ?? ''}
-                                                    onChange={(e) => setIndividualCourseDates(prev => ({ ...prev, [cid]: { ...(prev[cid] ?? {}), start: e.target.value } }))}
-                                                    style={{ width: 140 }}
-                                                />
-                                                <input
-                                                    type="date"
-                                                    value={individualCourseDates[cid]?.end ?? individualForm.values.fechaFin ?? ''}
-                                                    onChange={(e) => setIndividualCourseDates(prev => ({ ...prev, [cid]: { ...(prev[cid] ?? {}), end: e.target.value } }))}
-                                                    style={{ width: 140 }}
-                                                />
-                                                <Button size="xs" color="red" onClick={() => {
-                                                    // quitar curso de selección
-                                                    const newSel = (individualForm.values.courses_ids ?? []).filter((x: any) => String(x) !== String(cid));
-                                                    individualForm.setFieldValue('courses_ids', newSel);
-                                                    setIndividualCourseDates((prev) => { const copy = { ...prev }; delete copy[cid]; return copy; });
-                                                }}>Quitar</Button>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-
-                            <TextInput
-                                label="Nombre completo"
-                                value={individualForm.values.nombre}
-                                onChange={(e) => individualForm.setFieldValue('nombre', String(e.currentTarget.value).toUpperCase())}
-                                onBlur={() => individualForm.setFieldValue('nombre', String(individualForm.values.nombre ?? '').toUpperCase())}
-                            />
-                            <TextInput
-                                label="CURP"
-                                value={individualForm.values.curp}
-                                onChange={(e) => individualForm.setFieldValue('curp', String(e.currentTarget.value).toUpperCase())}
-                                onBlur={() => individualForm.setFieldValue('curp', String(individualForm.values.curp ?? '').toUpperCase())}
-                            />
-                            <TextInput
-                                label="Puesto"
-                                value={individualForm.values.puesto_trabajo}
-                                onChange={(e) => individualForm.setFieldValue('puesto_trabajo', String(e.currentTarget.value).toUpperCase())}
-                                onBlur={() => individualForm.setFieldValue('puesto_trabajo', String(individualForm.values.puesto_trabajo ?? '').toUpperCase())}
-                            />
-                            <Select
-                                label="Ocupación específica"
-                                value={individualForm.values.ocupacion_especifica}
-                                onChange={(v) => individualForm.setFieldValue('ocupacion_especifica', String(v ?? '').toUpperCase())}
-                                data={[
-                                    "01 Cultivo, crianza y aprovechamiento",
-                                    "02 Extracción y suministro",
-                                    "03 Construcción",
-                                    "04 Tecnología",
-                                    "05 Procesamiento y fabricación",
-                                    "06 Transporte",
-                                    "07 Provisión de bienes y servicios",
-                                    "08 Gestión y soporte administrativo",
-                                    "09 Salud y protección social",
-                                    "10 Comunicación",
-                                    "11 Desarrollo y extensión del conocimiento",
-                                ].map(s => ({ value: String(s).toUpperCase(), label: s }))}
-                            />
-
-                            <TextInput
-                                label="Representante legal"
-                                value={individualForm.values.repLegal}
-                                onChange={(e) => individualForm.setFieldValue('repLegal', String(e.currentTarget.value).toUpperCase())}
-                                onBlur={() => individualForm.setFieldValue('repLegal', String(individualForm.values.repLegal ?? '').toUpperCase())}
-                            />
-                            <TextInput
-                                label="Representante de los trabajadores"
-                                value={individualForm.values.repTrabajadores}
-                                onChange={(e) => individualForm.setFieldValue('repTrabajadores', String(e.currentTarget.value).toUpperCase())}
-                                onBlur={() => individualForm.setFieldValue('repTrabajadores', String(individualForm.values.repTrabajadores ?? '').toUpperCase())}
-                            />
-
-                            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                <Button type="submit" disabled={isIndividualSubmitDisabled() || sending} loading={sending} style={{ background: (isIndividualSubmitDisabled() || sending) ? '#cccccc' : 'var(--olive-green)' }}>Crear</Button>
+                        {/* Fechas por curso dinámicas */}
+                        {individualForm.values.courses_ids && individualForm.values.courses_ids.length > 0 && (
+                            <div style={{ border: '1px solid #eee', padding: 8, borderRadius: 6 }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Fechas por curso</div>
+                                {(individualForm.values.courses_ids as string[]).map((cid) => {
+                                    const opt = coursesOptions.find(c => String(c.value) === String(cid));
+                                    return (
+                                        <div key={cid} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                                            <div style={{ width: '50%' }}>{opt ? opt.label : cid}</div>
+                                            <input
+                                                type="date"
+                                                value={individualCourseDates[cid]?.start ?? individualForm.values.fechaInicio ?? ''}
+                                                onChange={(e) => setIndividualCourseDates(prev => ({ ...prev, [cid]: { ...(prev[cid] ?? {}), start: e.target.value } }))}
+                                                style={{ width: 140 }}
+                                            />
+                                            <input
+                                                type="date"
+                                                value={individualCourseDates[cid]?.end ?? individualForm.values.fechaFin ?? ''}
+                                                onChange={(e) => setIndividualCourseDates(prev => ({ ...prev, [cid]: { ...(prev[cid] ?? {}), end: e.target.value } }))}
+                                                style={{ width: 140 }}
+                                            />
+                                            <Button size="xs" color="red" onClick={() => {
+                                                // quitar curso de selección
+                                                const newSel = (individualForm.values.courses_ids ?? []).filter((x: any) => String(x) !== String(cid));
+                                                individualForm.setFieldValue('courses_ids', newSel);
+                                                setIndividualCourseDates((prev) => { const copy = { ...prev }; delete copy[cid]; return copy; });
+                                            }}>Quitar</Button>
+                                        </div>
+                                    );
+                                })}
                             </div>
+                        )}
+
+                        <TextInput
+                            label="Nombre completo"
+                            value={individualForm.values.nombre}
+                            onChange={(e) => individualForm.setFieldValue('nombre', String(e.currentTarget.value).toUpperCase())}
+                            onBlur={() => individualForm.setFieldValue('nombre', String(individualForm.values.nombre ?? '').toUpperCase())}
+                        />
+                        <TextInput
+                            label="CURP"
+                            value={individualForm.values.curp}
+                            onChange={(e) => individualForm.setFieldValue('curp', String(e.currentTarget.value).toUpperCase())}
+                            onBlur={() => individualForm.setFieldValue('curp', String(individualForm.values.curp ?? '').toUpperCase())}
+                        />
+                        <TextInput
+                            label="Puesto"
+                            value={individualForm.values.puesto_trabajo}
+                            onChange={(e) => individualForm.setFieldValue('puesto_trabajo', String(e.currentTarget.value).toUpperCase())}
+                            onBlur={() => individualForm.setFieldValue('puesto_trabajo', String(individualForm.values.puesto_trabajo ?? '').toUpperCase())}
+                        />
+                        <Select
+                            label="Ocupación específica"
+                            value={individualForm.values.ocupacion_especifica}
+                            onChange={(v) => individualForm.setFieldValue('ocupacion_especifica', String(v ?? '').toUpperCase())}
+                            data={[
+                                "01 Cultivo, crianza y aprovechamiento",
+                                "02 Extracción y suministro",
+                                "03 Construcción",
+                                "04 Tecnología",
+                                "05 Procesamiento y fabricación",
+                                "06 Transporte",
+                                "07 Provisión de bienes y servicios",
+                                "08 Gestión y soporte administrativo",
+                                "09 Salud y protección social",
+                                "10 Comunicación",
+                                "11 Desarrollo y extensión del conocimiento",
+                            ].map(s => ({ value: String(s).toUpperCase(), label: s }))}
+                        />
+
+                        <TextInput
+                            label="Representante legal"
+                            value={individualForm.values.repLegal}
+                            onChange={(e) => individualForm.setFieldValue('repLegal', String(e.currentTarget.value).toUpperCase())}
+                            onBlur={() => individualForm.setFieldValue('repLegal', String(individualForm.values.repLegal ?? '').toUpperCase())}
+                        />
+                        <TextInput
+                            label="Representante de los trabajadores"
+                            value={individualForm.values.repTrabajadores}
+                            onChange={(e) => individualForm.setFieldValue('repTrabajadores', String(e.currentTarget.value).toUpperCase())}
+                            onBlur={() => individualForm.setFieldValue('repTrabajadores', String(individualForm.values.repTrabajadores ?? '').toUpperCase())}
+                        />
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                            <Button type="submit" disabled={isIndividualSubmitDisabled() || sending} loading={sending} style={{ background: (isIndividualSubmitDisabled() || sending) ? '#cccccc' : 'var(--olive-green)' }}>Crear</Button>
                         </div>
-                    </form>
-                </Modal>
+                    </div>
+                </form>
+            </Modal>
         </Container>
     );
 }
