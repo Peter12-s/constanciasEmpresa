@@ -898,7 +898,6 @@ export function ConstanciasEmpresaPage() {
                                 color: 'white',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: 8,
                                 transition: 'filter 120ms ease, transform 120ms ease',
                             }}
                             onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(0.9)')}
