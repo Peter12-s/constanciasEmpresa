@@ -316,14 +316,12 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
       ],
       margin: [0, 0, 0, 8],
     },
-    { text: 'Los datos se asientan en esta constancia bajo protesta de decir verdad, apercibidos de la responsabilidad en que incurre todo aquel que no se conduce con verdad.', fontSize: 6.5,bold: true, alignment: 'center', margin: [0, 0, 0, 10] },
     {
       table: {
         widths: ['*', '*', '*'],
         body: [[
           {
             stack: [
-              { text: 'Capacitador', fontSize: 7.5, alignment: 'center', bold: true, margin: [0, 3, 0, 3] },
               {
                 table: {
                   widths: ['*'],
@@ -339,52 +337,53 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
                   ]],
                 },
                 layout: 'noBorders',
-                margin: [0, 2, 0, 2],
+                margin: [0, 5, 0, 5],
               },
+              { text: 'Capacitador', fontSize: 7.5, alignment: 'center', bold: true, margin: [0, 0, 0, 5] },
+              { text: instructor, fontSize: 6.5, alignment: 'center', bold: true, margin: [0, 0, 0, 2] },
               {
                 canvas: [
                   { type: 'line', x1: 10, y1: 0, x2: 150, y2: 0, lineWidth: 0.5 },
                 ],
                 alignment: 'center',
-                margin: [0, 2, 0, 4],
+                margin: [0, 0, 0, 3],
               },
-              { text: instructor, fontSize: 6.5, alignment: 'center', bold: true },
               { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' },
             ],
             margin: [5, 5, 5, 5],
           },
           {
             stack: [
-              { text: 'Por la empresa', fontSize: 7.5, alignment: 'center', bold: true, margin: [0, 3, 0, 3] },
               {
                 table: {
                   widths: ['*'],
                   body: [[{ text: '' }]],
-                  heights: [60]
+                  heights: [SIGNATURE_HEIGHT]
                 },
                 layout: { defaultBorder: false },
-                margin: [0, 3, 0, 3]
+                margin: [0, 5, 0, 5]
               },
-              { canvas: [{ type: 'line', x1: 10, y1: 0, x2: 140, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 2, 0, 4] },
-              { text: repLegal, fontSize: 6.5, alignment: 'center', margin: [0, 4, 0, 0] },
+              { text: 'Por la empresa', fontSize: 7.5, alignment: 'center', bold: true, margin: [0, 0, 0, 5] },
+              { text: repLegal, fontSize: 6.5, alignment: 'center', bold: true, margin: [0, 0, 0, 2] },
+              { canvas: [{ type: 'line', x1: 10, y1: 0, x2: 140, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 0, 0, 3] },
               { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' }
             ],
             margin: [5, 5, 5, 5],
           },
           {
             stack: [
-              { text: 'Por los trabajadores', fontSize: 7.5, alignment: 'center', bold: true, margin: [0, 3, 0, 3] },
               {
                 table: {
                   widths: ['*'],
                   body: [[{ text: '' }]],
-                  heights: [60]
+                  heights: [SIGNATURE_HEIGHT]
                 },
                 layout: { defaultBorder: false },
-                margin: [0, 3, 0, 3]
+                margin: [0, 5, 0, 5]
               },
-              { canvas: [{ type: 'line', x1: 10, y1: 0, x2: 140, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 2, 0, 4] },
-              { text: repTrab, fontSize: 6.5, alignment: 'center', margin: [0, 4, 0, 0] },
+              { text: 'Por los trabajadores', fontSize: 7.5, alignment: 'center', bold: true, margin: [0, 0, 0, 5] },
+              { text: repTrab, fontSize: 6.5, alignment: 'center', bold: true, margin: [0, 0, 0, 2] },
+              { canvas: [{ type: 'line', x1: 10, y1: 0, x2: 140, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 0, 0, 3] },
               { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' }
             ],
             margin: [5, 5, 5, 5],
@@ -392,8 +391,14 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
         ]],
       },
       layout: {
-        hLineWidth: () => 0.5,
-        vLineWidth: () => 0.5,
+        hLineWidth: (i: number, node: any) => {
+          if (i === 0 || i === node.table.body.length) return 0.5;
+          return 0;
+        },
+        vLineWidth: (i: number, node: any) => {
+          if (i === 0 || i === node.table.widths.length) return 0.5;
+          return 0;
+        },
         hLineColor: () => '#000000',
         vLineColor: () => '#000000',
       },
