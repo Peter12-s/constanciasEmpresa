@@ -5,8 +5,8 @@ import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import appConfig from "../core/constants/appConfig";
 
-const SIGNATURE_FIT: [number, number] = [160, 60];
-const SIGNATURE_HEIGHT = 70;
+const SIGNATURE_FIT: [number, number] = [200, 100];
+const SIGNATURE_HEIGHT = 105;
 
 const pdfFontsAny = pdfFonts as any;
 const pdfMakeAny = pdfMake as any;
@@ -112,7 +112,7 @@ const sectionHeader = (text: string) => ({
 
 const fieldWithLine = (label: string, value: string, fontSizeVal = 9, withBorder = false) => ({
   stack: [
-    { text: label, fontSize: 5.5, margin: [2, 0, 0, 1] },
+    { text: label, fontSize: 5, margin: [2, 0, 0, 1] },
     {
       table: {
         widths: ['*'],
@@ -121,16 +121,20 @@ const fieldWithLine = (label: string, value: string, fontSizeVal = 9, withBorder
             text: value || '',
             fontSize: fontSizeVal,
             bold: true,
-            alignment: 'center',
-            margin: [0, 2, 0, 2],
-            border: withBorder ? [true, true, true, true] : [true, false, true, true],
+            alignment: 'left',
+            margin: [2, 2, 0, 2],
+            border: withBorder ? [true, true, true, true] : [false, false, false, true],
           },
         ]],
       },
       layout: {
-        hLineWidth: () => 0.5,
-        vLineWidth: () => 0.5,
-        hLineColor: () => '#000000',
+        hLineWidth: (i: number, node: any) => {
+          // Línea inferior más delgada
+          if (i === node.table.body.length) return 0.3;
+          return 0;
+        },
+        vLineWidth: () => withBorder ? 0.5 : 0,
+        hLineColor: () => '#888888',
         vLineColor: () => '#000000',
       },
     },
@@ -148,18 +152,18 @@ const charGrid = (label: string, value: string, length: number) => {
 
   return {
     stack: [
-      { text: label, fontSize: 5.5, margin: [2, 0, 0, 1] },
+      { text: label, fontSize: 5, margin: [2, 0, 0, 1] },
       {
         table: {
-          widths: Array(length).fill(11.5),
-          heights: [17],
+          widths: Array(length).fill(10),
+          heights: [15],
           body: [[
             ...cleanVal.split('').map(c => ({
               text: c,
-              fontSize: 8,
+              fontSize: 7.5,
               bold: true,
               alignment: 'center',
-              margin: [0, 2, 0, 2],
+              margin: [0, 1.5, 0, 1.5],
               border: [true, true, true, true],
             })),
           ]],
@@ -177,13 +181,27 @@ const charGrid = (label: string, value: string, length: number) => {
 
 
 const dateGridSection = (dateObj: { d: string[], m: string[], a: string[] }) => {
-  const cell = (txt: string) => ({ text: txt, fontSize: 8, bold: true, alignment: 'center', border: [true, true, true, true], margin: [0, 1, 0, 1] });
-  const header = (txt: string, span: number = 1) => ({ text: txt, fontSize: 5.5, alignment: 'center', border: [false, false, false, false], colSpan: span, margin: [0, 0, 0, 1] });
+  const cell = (txt: string) => ({ 
+    text: txt, 
+    fontSize: 7.5, 
+    bold: true, 
+    alignment: 'center', 
+    border: [true, true, true, true], 
+    margin: [0, 1.5, 0, 1.5] 
+  });
+  const header = (txt: string, span: number = 1) => ({ 
+    text: txt, 
+    fontSize: 5, 
+    alignment: 'center', 
+    border: [false, false, false, false], 
+    colSpan: span, 
+    margin: [0, 0, 0, 1] 
+  });
 
   return {
     width: 'auto',
     table: {
-      widths: [10, 10, 10, 10, 4, 10, 10, 4, 10, 10],
+      widths: [9.5, 9.5, 9.5, 9.5, 3, 9.5, 9.5, 3, 9.5, 9.5],
       body: [
         [header('Año', 4), {}, {}, {}, {}, header('Mes', 2), {}, {}, header('Día', 2), {}],
         [
@@ -195,7 +213,12 @@ const dateGridSection = (dateObj: { d: string[], m: string[], a: string[] }) => 
         ]
       ]
     },
-    layout: { defaultBorder: false }
+    layout: {
+      hLineWidth: () => 0.5,
+      vLineWidth: () => 0.5,
+      hLineColor: () => '#000000',
+      vLineColor: () => '#000000',
+    }
   };
 };
 
@@ -222,9 +245,9 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
   return [
     {
       columns: [
-        { width: 160, stack: logoDataUrl ? [{ image: logoDataUrl, fit: [155, 60] }] : [] },
-        { width: '*', stack: [{ text: 'FORMATO DC-3', bold: true, fontSize: 12, alignment: 'center', margin: [0, 10, 0, 1] }, { text: 'CONSTANCIA DE COMPETENCIAS O DE HABILIDADES LABORALES', fontSize: 8, bold: true, alignment: 'center' }] },
-        { width: 85, stack: [{ image: qrDataUrl, fit: [80, 80], alignment: 'right', margin: [0, 0, 0, 0] }] }
+        { width: 180, stack: logoDataUrl ? [{ image: logoDataUrl, fit: [180, 80], margin: [0, 5, 0, 0] }] : [] },
+        { width: '*', stack: [{ text: 'FORMATO DC-3\nCONSTANCIA DE COMPETENCIAS O DE HABILIDADES LABORALES', bold: true, fontSize: 10, alignment: 'center', margin: [0, 15, 0, 0] }] },
+        { width: 70, stack: [{ image: qrDataUrl, fit: [65, 65], alignment: 'right', margin: [0, 5, 0, 0] }] }
       ], margin: [0, 0, 0, 3]
     },
     sectionHeader('DATOS DEL TRABAJADOR'),
@@ -243,9 +266,49 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
     { margin: [0, 3, 0, 3], ...charGrid('Registro Federal de Contribuyentes con homoclave (SHCP)', rfc, 13) },
     sectionHeader('DATOS DEL PROGRAMA DE CAPACITACIÓN, ADIESTRAMIENTO Y PRODUCTIVIDAD'),
     fieldWithLine('Nombre del curso', curso, 9),
-    { margin: [0, 8, 0, 8], columns: [{ width: 75, stack: [{ text: 'Duración en horas', fontSize: 5.5, margin: [0, 0, 0, 1] }, { text: String(duracion), fontSize: 9, bold: true, alignment: 'center' }] }, { width: 'auto', text: 'Periodo de\nejecución:', fontSize: 7, bold: true, margin: [0, 12, 4, 0] }, { width: 'auto', text: 'De', fontSize: 8, margin: [0, 12, 4, 0] }, dateGridSection(fInicio), { width: 'auto', text: 'a', fontSize: 8, margin: [4, 12, 4, 0] }, dateGridSection(fFin)] },
+    { margin: [0, 8, 0, 8], columns: [{ width: 75, stack: [{ text: 'Duración en horas', fontSize: 5, margin: [0, 0, 0, 1] }, { text: String(duracion), fontSize: 9, bold: true, alignment: 'center' }] }, { width: 'auto', text: 'Periodo de\nejecución:', fontSize: 7, bold: true, margin: [0, 10, 4, 0] }, { width: 'auto', text: 'De', fontSize: 7.5, margin: [0, 10, 4, 0] }, dateGridSection(fInicio), { width: 'auto', text: 'a', fontSize: 7.5, margin: [4, 10, 4, 0] }, dateGridSection(fFin)] },
     fieldWithLine('Área temática del curso 2/', (raw.area_tematica ?? '6000 Seguridad'), 8),
-    { columns: [{ width: '*', ...fieldWithLine('Nombre del agente capacitador o STPS 3/', instructor, 8) }, { width: 15, text: '' }, { width: 130, stack: [{ text: 'REG. STPS', fontSize: 5.5 }, { text: regStps, fontSize: 8, bold: true, border: [false, false, false, false], alignment: 'right' }] }], margin: [0, 0, 0, 8] },
+    {
+      stack: [
+        { text: 'Nombre del agente capacitador o STPS 3/', fontSize: 5, margin: [2, 0, 0, 1] },
+        {
+          table: {
+            widths: ['*', 130],
+            body: [[
+              {
+                text: instructor,
+                fontSize: 8,
+                bold: true,
+                alignment: 'left',
+                margin: [2, 2, 2, 2],
+                border: [false, false, true, true],
+              },
+              {
+                stack: [
+                  { text: 'REG. STPS', fontSize: 5, alignment: 'left', margin: [2, 0, 0, 0] },
+                  { text: regStps, fontSize: 8, bold: true, alignment: 'left', margin: [2, 0, 0, 0] }
+                ],
+                border: [true, false, false, true],
+                margin: [0, 2, 0, 2],
+              },
+            ]],
+          },
+          layout: {
+            hLineWidth: (i: number, node: any) => {
+              if (i === node.table.body.length) return 0.3;
+              return 0;
+            },
+            vLineWidth: (i: number) => {
+              if (i === 1) return 0.5;
+              return 0;
+            },
+            hLineColor: () => '#888888',
+            vLineColor: () => '#888888',
+          },
+        },
+      ],
+      margin: [0, 0, 0, 8],
+    },
     { text: 'Los datos se asientan en esta constancia bajo protesta de decir verdad, apercibidos de la responsabilidad en que incurre todo aquel que no se conduce con verdad.', fontSize: 6.5, italics: true, alignment: 'center', margin: [0, 4, 0, 20] },
     {
       columns: [
@@ -326,13 +389,13 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
       stack: [
         { text: '- Llenar a máquina o con letra de molde', fontSize: 5, margin: [15, 0, 0, 1] },
         { text: '- Deberá entregarse al trabajador dentro de los veinte días hábiles siguientes al término del curso de capacitación aprobado.', fontSize: 5, margin: [15, 0, 0, 1] },
-        { text: '1/  Las áreas y subáreas ocupacionales del Catálogo Nacional de Ocupaciones se encuentran disponibles en el reverso de este formato y en la página www.stps.gob.mx', fontSize: 5, margin: [0, 0, 0, 1] },
-        { text: '2/  Las áreas temáticas de los cursos se encuentran disponibles en el reverso de este formato y en la página www.stps.gob.mx', fontSize: 5, margin: [0, 0, 0, 1] },
-        { text: '3/  Cursos impartidos por el área competente de la Secretaría del Trabajo y Previsión Social.', fontSize: 5, margin: [0, 0, 0, 1] },
-        { text: '4/', fontSize: 5, margin: [0, 0, 0, 0] },
-        { text: '     Para empresas con menos de 51 trabajadores. Para empresas con más de 50 trabajadores firmará el representante del patrón ante la Comisión mixta de capacitación, ad', fontSize: 5, margin: [0, 0, 0, 1] },
-        { text: '5/  Solo para empresas con más de 50 trabajadores.', fontSize: 5, margin: [0, 0, 0, 1] },
-        { text: '*   Dato no obligatorio', fontSize: 5, margin: [0, 0, 0, 0] }
+        { text: '1/  Las áreas y subáreas ocupacionales del Catálogo Nacional de Ocupaciones se encuentran disponibles en el reverso de este formato y en la página www.stps.gob.mx', fontSize: 5, margin: [12, 0, 0, 1] },
+        { text: '2/  Las áreas temáticas de los cursos se encuentran disponibles en el reverso de este formato y en la página www.stps.gob.mx', fontSize: 5, margin: [12, 0, 0, 1] },
+        { text: '3/  Cursos impartidos por el área competente de la Secretaría del Trabajo y Previsión Social.', fontSize: 5, margin: [12, 0, 0, 1] },
+        { text: '4/', fontSize: 5, margin: [12, 0, 0, 0] },
+        { text: '     Para empresas con menos de 51 trabajadores. Para empresas con más de 50 trabajadores firmará el representante del patrón ante la Comisión mixta de capacitación, ad', fontSize: 5, margin: [12, 0, 0, 1] },
+        { text: '5/  Solo para empresas con más de 50 trabajadores.', fontSize: 5, margin: [12, 0, 0, 1] },
+        { text: '*   Dato no obligatorio', fontSize: 5, margin: [0, 0, 0, 14] }
       ]
     },
     { 
@@ -537,7 +600,7 @@ export async function generateAndDownloadZipDC3(
       text,
       bold: true,
       fontSize: 7.5,
-      alignment: 'left',
+      alignment: 'center',
       margin: [0, 0, 0, 5],
     });
 

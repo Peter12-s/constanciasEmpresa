@@ -893,6 +893,7 @@ export function ConstanciasEmpresaPage() {
                             Constancias
                         </Button>
                         <Button
+                            className={`action-btn small-action-btn`}
                             style={{
                                 backgroundColor: 'var(--olive-green)',
                                 color: 'white',
