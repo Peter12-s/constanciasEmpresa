@@ -740,7 +740,7 @@ export function ConstanciasEmpresaPage() {
 
                             {/* DESCARGA + EXCEL */}
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <a href="/Plantilla_Constancias.xlsx" download="Plantilla_Constancias.xlsx" style={{ fontSize: 14 }}>Descargar plantilla</a>
+                                <a href="/Plantilla_Constancias[Descargable].xlsx" download="Plantilla_Constancias.xlsx" style={{ fontSize: 14 }}>Descargar plantilla</a>
 
 
                                 <FileInput
