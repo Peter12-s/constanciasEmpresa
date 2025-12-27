@@ -487,133 +487,111 @@ export function ConstanciasAdminPage() {
         });
         return;
       }
-      const courseNameFromCertificate = raw?.certificate_courses && Array.isArray(raw.certificate_courses) && raw.certificate_courses.length > 0
-        ? raw.certificate_courses[0]?.course?.name
-        : undefined;
-      const effectiveCourseName = courseNameFromCertificate ?? raw?.course_name ?? raw?.course?.name ?? "";
-      const xlsxPeriod = raw?.xlsx_object?.course_period;
-      let effectivePeriod = xlsxPeriod ?? raw?.course_period ?? "";
-      if (!effectivePeriod) {
-        const firstC = Array.isArray(cursantes) && cursantes.length > 0 ? cursantes[0] : null;
-        if (firstC) {
-          const a = firstC.fecha_inicio ?? firstC.fechaInicio ?? "";
-          const b = firstC.fecha_fin ?? firstC.fechaFin ?? "";
-          if (a || b) effectivePeriod = `${a} / ${b}`;
+
+      // Obtener todos los cursos asociados
+      const certificateCourses = Array.isArray(raw?.certificate_courses) ? raw.certificate_courses : [];
+      
+      // Si no hay cursos asociados, usar datos del certificado principal
+      if (certificateCourses.length === 0) {
+        const courseNameFromCertificate = raw?.course_name ?? raw?.course?.name ?? "";
+        const xlsxPeriod = raw?.xlsx_object?.course_period;
+        let effectivePeriod = xlsxPeriod ?? raw?.course_period ?? "";
+        if (!effectivePeriod) {
+          const firstC = cursantes[0];
+          if (firstC) {
+            const a = firstC.fecha_inicio ?? firstC.fechaInicio ?? "";
+            const b = firstC.fecha_fin ?? firstC.fechaFin ?? "";
+            if (a || b) effectivePeriod = `${a} / ${b}`;
+          }
         }
+        certificateCourses.push({
+          course: { name: courseNameFromCertificate },
+          course_name: courseNameFromCertificate,
+          start: effectivePeriod.split('/')[0]?.trim() ?? '',
+          end: effectivePeriod.split('/')[1]?.trim() ?? '',
+        });
       }
 
-      let periodoStack: any[] = [];
-      if (Array.isArray(raw?.certificate_courses) && raw.certificate_courses.length > 1) {
-        periodoStack = raw.certificate_courses.map((ac: any) => {
-          const name = (ac?.course?.name ?? ac?.course_name ?? '').toString();
-          const s = ac?.start ?? ac?.fecha_inicio ?? '';
-          const e = ac?.end ?? ac?.fecha_fin ?? '';
-          const period = (s || e) ? `${s || ''}${s && e ? ' / ' : ''}${e || ''}` : '';
-          return {
-            text: [
-              { text: name || '', bold: true, fontSize: 8 },
-              ...(period ? [{ text: ' —> ' }, { text: period, fontSize: 7 }] : []),
-            ],
-            margin: [0, 2, 0, 2],
-          };
-        }).filter(Boolean);
-      } else {
-        const name = effectiveCourseName ?? '';
-        if (name) {
-          let periodText = effectivePeriod ?? '';
-          if (!periodText && Array.isArray(raw?.certificate_courses) && raw.certificate_courses.length > 0) {
-            const ac0 = raw.certificate_courses[0];
-            const s0 = ac0?.start ?? ac0?.fecha_inicio ?? '';
-            const e0 = ac0?.end ?? ac0?.fecha_fin ?? '';
-            if (s0 || e0) periodText = `${s0 || ''}${s0 && e0 ? ' / ' : ''}${e0 || ''}`;
-          }
-          if (periodText) {
-            periodoStack = [
-              { text: [{ text: name, bold: true, fontSize: 10 }] },
-              { text: [{ text: periodText, fontSize: 9 }], margin: [0, 2, 0, 0] },
-            ];
-          } else {
-            periodoStack = [{ text: [{ text: name, bold: true, fontSize: 10 }] }];
-          }
-        } else {
-          periodoStack = [{ text: [{ text: effectivePeriod ?? '', fontSize: 9 }] }];
-        }
-      }
-
-      const headerTableBody = [
-        [
-          { text: "Empresa", bold: true, border: [false, false, false, false] },
-          { text: raw.company_name ?? "", border: [false, false, false, false] },
-        ],
-        [
-          { text: "Periodo", bold: true, border: [false, false, false, false] },
-          {
-            border: [true, true, true, true],
-            fillColor: '#549afbff',
-            stack: periodoStack.map((it: any) => {
-              if (typeof it === 'string') return { text: it, margin: [8, 6, 8, 6], fontSize: 7 };
-              return { ...it, margin: [8, 2, 8, 2] };
-            }),
-          },
-        ],
-        [
-          { text: "Agente Capacitador", bold: true, border: [false, false, false, false] },
-          { text: raw.trainer_fullname ?? "", border: [false, false, false, false] },
-        ],
-        [
-          { text: "Registro", bold: true, border: [false, false, false, false] },
-          { text: raw.stps ?? raw._id ?? "", border: [false, false, false, false] },
-        ],
-      ];
-      const tableBody: any[] = [];
-      tableBody.push([
-        { text: "#", bold: true, alignment: "center" },
-        { text: "NOMBRE COMPLETO", bold: true },
-        { text: "CURP", bold: true },
-        { text: "PUESTO DE TRABAJO", bold: true },
-        { text: "FIRMA", bold: true },
-      ]);
-
-      cursantes.forEach((c, i) => {
-        tableBody.push([
-          { text: String(i + 1), alignment: "center" },
-          { text: (c.nombre ?? "").toString().toUpperCase() },
-          { text: (c.curp ?? "").toString().toUpperCase() },
-          { text: c.ocupacion_especifica ?? "" },
-          { text: "" },
-        ]);
-      });
       const logoDataUrl = await imageUrlToDataUrl("logo.png");
 
-      const docDefinition: any = {
-        pageSize: "A4",
-        pageMargins: [40, 30, 40, 30],
-        content: [
+      // Generar una página por cada curso
+      const pages: any[] = [];
+
+      certificateCourses.forEach((courseItem: any, courseIndex: number) => {
+        const courseName = courseItem?.course?.name ?? courseItem?.course_name ?? '';
+        const courseStart = courseItem?.start ?? courseItem?.fecha_inicio ?? '';
+        const courseEnd = courseItem?.end ?? courseItem?.fecha_fin ?? '';
+        const coursePeriod = (courseStart || courseEnd) ? `${courseStart || ''}${courseStart && courseEnd ? ' / ' : ''}${courseEnd || ''}` : '';
+
+        const headerTableBody = [
           [
+            { text: "Empresa", bold: true, border: [false, false, false, false] },
+            { text: raw.company_name ?? "", border: [false, false, false, false] },
+          ],
+          [
+            { text: "Curso", bold: true, border: [false, false, false, false] },
             {
-              columns: [
-                { width: 120, image: logoDataUrl, margin: [0, 0, 0, 0] },
-                {
-                  width: "*",
-                  stack: [
-                    {
-                      text: "Registro de curso DOGROUP",
-                      style: "title",
-                      margin: [0, 0, 0, 8],
-                      alignment: "right",
-                    },
-                    {
-                      table: { widths: ["auto", "*"], body: headerTableBody },
-                      layout: "noBorders",
-                    },
-                  ],
-                  margin: [24, 0, 0, 0],
-                },
+              border: [true, true, true, true],
+              fillColor: '#549afbff',
+              stack: [
+                { text: courseName || '', bold: true, fontSize: 10, margin: [8, 6, 8, 2] },
+                { text: coursePeriod || '', fontSize: 9, margin: [8, 2, 8, 6] },
               ],
-              columnGap: 36,
-              margin: [0, 0, 0, 12],
             },
           ],
+          [
+            { text: "Agente Capacitador", bold: true, border: [false, false, false, false] },
+            { text: raw.trainer_fullname ?? "", border: [false, false, false, false] },
+          ],
+          [
+            { text: "Registro", bold: true, border: [false, false, false, false] },
+            { text: raw.stps ?? raw._id ?? "", border: [false, false, false, false] },
+          ],
+        ];
+
+        const tableBody: any[] = [];
+        tableBody.push([
+          { text: "#", bold: true, alignment: "center" },
+          { text: "NOMBRE COMPLETO", bold: true },
+          { text: "CURP", bold: true },
+          { text: "PUESTO DE TRABAJO", bold: true },
+          { text: "FIRMA", bold: true },
+        ]);
+
+        cursantes.forEach((c, i) => {
+          tableBody.push([
+            { text: String(i + 1), alignment: "center" },
+            { text: (c.nombre ?? "").toString().toUpperCase() },
+            { text: (c.curp ?? "").toString().toUpperCase() },
+            { text: c.ocupacion_especifica ?? "" },
+            { text: "" },
+          ]);
+        });
+
+        const pageContent = [
+          {
+            columns: [
+              { width: 120, image: logoDataUrl, margin: [0, 0, 0, 0] },
+              {
+                width: "*",
+                stack: [
+                  {
+                    text: "Registro de curso DOGROUP",
+                    style: "title",
+                    margin: [0, 0, 0, 8],
+                    alignment: "right",
+                  },
+                  {
+                    table: { widths: ["auto", "*"], body: headerTableBody },
+                    layout: "noBorders",
+                  },
+                ],
+                margin: [24, 0, 0, 0],
+              },
+            ],
+            columnGap: 36,
+            margin: [0, 0, 0, 12],
+          },
           {
             table: {
               headerRows: 1,
@@ -670,7 +648,20 @@ export function ConstanciasAdminPage() {
             columnGap: 10,
             alignment: "center",
           },
-        ],
+        ];
+
+        // Agregar salto de página si no es el último curso
+        if (courseIndex < certificateCourses.length - 1) {
+          pages.push(pageContent, { text: '', pageBreak: 'after' });
+        } else {
+          pages.push(pageContent);
+        }
+      });
+
+      const docDefinition: any = {
+        pageSize: "A4",
+        pageMargins: [40, 30, 40, 30],
+        content: pages,
         styles: { title: { fontSize: 14, bold: true, alignment: "center" } },
         defaultStyle: { fontSize: 9 },
       };
