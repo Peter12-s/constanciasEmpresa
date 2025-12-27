@@ -6,7 +6,7 @@ import { saveAs } from "file-saver";
 import appConfig from "../core/constants/appConfig";
 
 const SIGNATURE_FIT: [number, number] = [280, 140];
-const SIGNATURE_HEIGHT = 85;
+const SIGNATURE_HEIGHT = 60;
 
 const pdfFontsAny = pdfFonts as any;
 const pdfMakeAny = pdfMake as any;
@@ -245,17 +245,23 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
   return [
     {
       columns: [
-        { width: 150, alignment: 'left',fontSize: 10,  stack: logoDataUrl ? [{ image: logoDataUrl, fit: [140, 50] }] : [] },
+        { 
+          width: 180, 
+          stack: logoDataUrl ? [{ image: logoDataUrl, fit: [170, 65], margin: [0, 5, 0, 0] }] : [] 
+        },
         {
-          width: 380,
+          width: '*',
           stack: [
-            { text: 'FORMATO DC-3', bold: true, fontSize: 12, alignment: 'center', margin: [0, 15, 0, 4] },
-            { text: 'CONSTANCIA DE COMPETENCIAS O DE HABILIDADES LABORALES', bold: true, fontSize: 12, alignment: 'center', margin: [0, 0, 0, 1] },
+            { text: 'FORMATO DC-3', bold: true, fontSize: 11, alignment: 'center', margin: [0, 10, 0, 2] },
+            { text: 'CONSTANCIA DE COMPETENCIAS O DE HABILIDADES LABORALES', bold: true, fontSize: 11, alignment: 'center', margin: [0, 0, 0, 0] },
           ]
         },
-        { width: 80, stack: [{ image: qrDataUrl, fit: [55, 55], alignment: 'right', margin: [0, 5, 0, 0] }] }
+        { 
+          width: 75, 
+          stack: [{ image: qrDataUrl, fit: [70, 70], alignment: 'right', margin: [0, 5, 0, 0] }] 
+        }
       ],
-      margin: [0, 0, 0, 5]
+      margin: [0, 0, 0, 8]
     },
     sectionHeader('DATOS DEL TRABAJADOR'),
     fieldWithLine('Nombre (Anotar apellido paterno, apellido materno y nombre (s))', nombre, 9, false, 'left'),
@@ -320,6 +326,9 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
       table: {
         widths: ['*', '*', '*'],
         body: [[
+          {
+            text: 'Los datos se asientan en esta constancia bajo protesta de decir verdad, apercibidos de la responsabilidad en que incurre todo aquel que no se conduce con verdad.', fontSize: 7, italics: true, alignment: 'center', margin: [0, 5, 0, 25] 
+          },
           {
             stack: [
               {
