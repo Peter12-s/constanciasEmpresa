@@ -5,6 +5,9 @@ import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import appConfig from "../core/constants/appConfig";
 
+const SIGNATURE_FIT: [number, number] = [140, 55];
+const SIGNATURE_HEIGHT = 65;
+
 const pdfFontsAny = pdfFonts as any;
 const pdfMakeAny = pdfMake as any;
 
@@ -90,43 +93,81 @@ function splitDateParts(str?: string) {
 const sectionHeader = (text: string) => ({
   table: {
     widths: ['*'],
-    body: [[{ text, fillColor: 'black', color: 'white', bold: true, alignment: 'center', fontSize: 9, border: [false, false, false, false], margin: [0, 2, 0, 2] }]]
+    body: [[
+      {
+        text,
+        fillColor: '#000000',
+        color: '#FFFFFF',
+        bold: true,
+        fontSize: 9,
+        alignment: 'center',
+        margin: [0, 3, 0, 3],
+        border: [true, true, true, true],
+      },
+    ]],
   },
-  margin: [0, 5, 0, 5] as [number, number, number, number]
+  layout: 'noBorders',
+  margin: [0, 6, 0, 4],
 });
 
 const fieldWithLine = (label: string, value: string, fontSizeVal = 9) => ({
   stack: [
-    { text: label, fontSize: 6, margin: [0, 0, 0, 1] },
+    { text: label, fontSize: 6, margin: [2, 0, 0, 1] },
     {
       table: {
         widths: ['*'],
-        body: [[{ text: value, fontSize: fontSizeVal, bold: true, alignment: 'center', border: [false, false, false, true], margin: [0, 0, 0, 1] }]]
+        body: [[
+          {
+            text: value || '',
+            fontSize: fontSizeVal,
+            bold: true,
+            alignment: 'center',
+            margin: [0, 2, 0, 2],
+            border: [false, false, false, true],
+          },
+        ]],
       },
-      layout: { defaultBorder: false }
-    }
+      layout: 'noBorders',
+    },
   ],
-  margin: [0, 0, 0, 2] as [number, number, number, number]
+  margin: [0, 0, 0, 4],
 });
 
+
 const charGrid = (label: string, value: string, length: number) => {
-  const cleanVal = (value || "").toUpperCase().replace(/[^A-Z0-9]/g, "").padEnd(length, " ");
-  const chars = cleanVal.split("").slice(0, length);
+  const cleanVal = (value || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .padEnd(length, ' ')
+    .slice(0, length);
 
   return {
-    columnGap: 5,
     columns: [
-      { width: 'auto', text: label, fontSize: 6, margin: [0, 6, 5, 0] },
       {
         width: 'auto',
+        text: label,
+        fontSize: 6,
+        margin: [0, 10, 5, 0],
+      },
+      {
         table: {
-          widths: Array(length).fill(11),
-          body: [chars.map(c => ({ text: c, fontSize: 9, bold: true, alignment: 'center', border: [true, true, true, true] }))]
-        }
-      }
-    ]
+          widths: Array(length).fill(12),
+          heights: [18],
+          body: [[
+            ...cleanVal.split('').map(c => ({
+              text: c,
+              fontSize: 9,
+              bold: true,
+              alignment: 'center',
+              margin: [0, 2, 0, 0],
+            })),
+          ]],
+        },
+      },
+    ],
   };
 };
+
 
 const dateGridSection = (dateObj: { d: string[], m: string[], a: string[] }) => {
   const cell = (txt: string) => ({ text: txt, fontSize: 9, bold: true, alignment: 'center', border: [true, true, true, true] });
@@ -194,58 +235,76 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
     { text: 'Los datos se asientan en esta constancia bajo protesta de decir verdad, apercibidos de la responsabilidad en que incurre todo aquel que no se conduce con verdad.', fontSize: 7, italics: true, alignment: 'center', margin: [0, 5, 0, 25] },
     {
       columns: [
-        { width: '*', stack: [
-          { text: 'Instructor o tutor', fontSize: 8, alignment: 'center', bold: true },
-          // área reservada de altura fija para la firma (imagen o vacío)
-          {
-            table: {
-              widths: ['*'],
-              body: [[
-                signatureDataUrl
-                  ? { image: signatureDataUrl, fit: [155, 50], alignment: 'center' }
-                  : { text: '' }
-              ]],
-              heights: [60]
+        {
+          width: '*',
+          stack: [
+            { text: 'Capacitador', fontSize: 8, alignment: 'center', bold: true },
+
+            {
+              table: {
+                widths: ['*'],
+                heights: [SIGNATURE_HEIGHT],
+                body: [[
+                  signatureDataUrl
+                    ? {
+                      image: signatureDataUrl,
+                      fit: SIGNATURE_FIT,
+                      alignment: 'center',
+                    }
+                    : { text: '' },
+                ]],
+              },
+              layout: 'noBorders',
+              margin: [0, 2, 0, 2],
             },
-            layout: { defaultBorder: false },
-            margin: [0, 3, 0, 3]
-          },
-          // Línea siempre debajo de la firma
-          { canvas: [{ type: 'line', x1: 5, y1: 0, x2: 155, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 4, 0, 6] },
-          { text: instructor, fontSize: 7, alignment: 'center', margin: [0, 6, 0, 0] },
-          { text: 'Nombre y firma', fontSize: 6, alignment: 'center' }
-        ] },
-        { width: '*', stack: [
-          { text: 'Patrón o representante legal', fontSize: 8, alignment: 'center', bold: true },
-          // área reservada con la misma altura que la columna del instructor
-          {
-            table: {
-              widths: ['*'],
-              body: [[{ text: '' }]],
-              heights: [60]
+
+            {
+              canvas: [
+                { type: 'line', x1: 0, y1: 0, x2: 160, y2: 0, lineWidth: 0.6 },
+              ],
+              alignment: 'center',
+              margin: [0, 3, 0, 5],
             },
-            layout: { defaultBorder: false },
-            margin: [0, 3, 0, 3]
-          },
-          { canvas: [{ type: 'line', x1: 5, y1: 0, x2: 155, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 4, 0, 6] },
-          { text: repLegal, fontSize: 7, alignment: 'center', margin: [0, 6, 0, 0] },
-          { text: 'Nombre y firma', fontSize: 6, alignment: 'center' }
-        ] },
-        { width: '*', stack: [
-          { text: 'Representante de los trabajadores', fontSize: 8, alignment: 'center', bold: true },
-          {
-            table: {
-              widths: ['*'],
-              body: [[{ text: '' }]],
-              heights: [60]
+
+            { text: instructor, fontSize: 7, alignment: 'center', bold: true },
+            { text: 'Nombre y firma', fontSize: 6, alignment: 'center' },
+          ],
+        },
+        {
+          width: '*', stack: [
+            { text: 'Patrón o representante legal', fontSize: 8, alignment: 'center', bold: true },
+            // área reservada con la misma altura que la columna del instructor
+            {
+              table: {
+                widths: ['*'],
+                body: [[{ text: '' }]],
+                heights: [60]
+              },
+              layout: { defaultBorder: false },
+              margin: [0, 3, 0, 3]
             },
-            layout: { defaultBorder: false },
-            margin: [0, 3, 0, 3]
-          },
-          { canvas: [{ type: 'line', x1: 5, y1: 0, x2: 155, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 4, 0, 6] },
-          { text: repTrab, fontSize: 7, alignment: 'center', margin: [0, 6, 0, 0] },
-          { text: 'Nombre y firma', fontSize: 6, alignment: 'center' }
-        ] }
+            { canvas: [{ type: 'line', x1: 5, y1: 0, x2: 155, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 4, 0, 6] },
+            { text: repLegal, fontSize: 7, alignment: 'center', margin: [0, 6, 0, 0] },
+            { text: 'Nombre y firma', fontSize: 6, alignment: 'center' }
+          ]
+        },
+        {
+          width: '*', stack: [
+            { text: 'Representante de los trabajadores', fontSize: 8, alignment: 'center', bold: true },
+            {
+              table: {
+                widths: ['*'],
+                body: [[{ text: '' }]],
+                heights: [60]
+              },
+              layout: { defaultBorder: false },
+              margin: [0, 3, 0, 3]
+            },
+            { canvas: [{ type: 'line', x1: 5, y1: 0, x2: 155, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 4, 0, 6] },
+            { text: repTrab, fontSize: 7, alignment: 'center', margin: [0, 6, 0, 0] },
+            { text: 'Nombre y firma', fontSize: 6, alignment: 'center' }
+          ]
+        }
       ], columnGap: 20, margin: [0, 0, 0, 20]
     },
     { text: 'INSTRUCCIONES', bold: true, fontSize: 8, margin: [0, 0, 0, 2] },
@@ -269,7 +328,7 @@ export async function generateAndDownloadZipDC3(
   users: Array<DC3User & { certificate_overrides?: Partial<DC3CertificateData> }>,
   logoUrl: string = "logo.png",
   zipFileName: string = "constancias.zip"
-) {   
+) {
   const zip = new JSZip();
   const logoDataUrl = await imageUrlToDataUrl(logoUrl);
 
@@ -279,23 +338,23 @@ export async function generateAndDownloadZipDC3(
   for (const cursante of users) {
     // Permitir overrides específicos por cursante (p. ej. rep_legal, rep_trabajadores, capacitador, curso_interes, fechas)
     const merged = { ...(certificateData ?? {}), ...(cursante.certificate_overrides ?? {}) } as any;
-    
+
     // Resolver tipo_firma ANTES de asignar area_tematica para que no sea sobrescrito
     // Para tipo_firma, priorizar xlsx_object sobre el nivel raíz del certificateData
     const resolvedTipoFirma = (cursante.certificate_overrides && (cursante.certificate_overrides as any).tipo_firma)
       ?? (certificateData as any).xlsx_object?.tipo_firma
       ?? (certificateData as any).tipo_firma
       ?? 'FISICA';
-    
+
     // Resolver area_tematica de forma defensiva: override por cursante > certificateData > certificateData.xlsx_object > fallback
     merged.area_tematica = (cursante.certificate_overrides && (cursante.certificate_overrides as any).area_tematica)
       ?? certificateData.area_tematica
       ?? (certificateData as any).xlsx_object?.area_tematica
       ?? '6000 Seguridad';
-    
+
     // Asignar tipo_firma resuelto AL FINAL para que no sea sobrescrito
     merged.tipo_firma = resolvedTipoFirma;
-    
+
     const perCert: DC3CertificateData = merged as DC3CertificateData;
 
     // Determinar lista de cursos asociados al certificado. Buscamos varias claves posibles
@@ -315,24 +374,24 @@ export async function generateAndDownloadZipDC3(
       if (envUrl) {
         return String(envUrl);
       }
-      
+
       // Fallback a window.location
       if (typeof window === 'undefined') return '';
-      
+
       // En desarrollo local, usar http para evitar problemas SSL
       const { hostname, port, protocol } = window.location;
       if (hostname === 'localhost' || hostname === '127.0.0.1') {
         const devUrl = `http://${hostname}${port ? `:${port}` : ''}`;
         return devUrl;
       }
-      
+
       // En producción usar origin (incluye protocolo, host y puerto)
       return window.location.origin;
     })();
 
     const finalBase = baseUrl || '';
 
-  // Nota: generaremos el QR por curso más abajo (dentro del bucle) para incluir el course_id
+    // Nota: generaremos el QR por curso más abajo (dentro del bucle) para incluir el course_id
 
     // Si hay firma digital (id en Google Drive) y el cursante solicita firma DIGITAL,
     // intentar obtener la imagen desde Google Drive como data URL.
@@ -349,13 +408,13 @@ export async function generateAndDownloadZipDC3(
         } else {
           // usar endpoint de descarga directo de Drive
           const driveUrl = `${appConfig.BACKEND_URL}/google/proxy-drive?id=${encodeURIComponent(signId)}`;
-          
+
           // intentar convertir a data URL
           const resp = await fetch(driveUrl);
-          
+
           if (resp.ok) {
             const blob = await resp.blob();
-            
+
             signatureDataUrl = await new Promise<string>((resolve, reject) => {
               const reader = new FileReader();
               reader.onloadend = () => resolve(String(reader.result));
@@ -371,7 +430,7 @@ export async function generateAndDownloadZipDC3(
       }
     } catch (e) {
       // almacenar en caché un valor undefined para no reintentar
-      try { if ((perCert as any).sign) signatureCache.set((perCert as any).sign, undefined); } catch (_) {}
+      try { if ((perCert as any).sign) signatureCache.set((perCert as any).sign, undefined); } catch (_) { }
       signatureDataUrl = undefined;
     }
 
@@ -386,7 +445,7 @@ export async function generateAndDownloadZipDC3(
       const startNorm = s ? String(s).slice(0, 10) : undefined;
       const endNorm = e ? String(e).slice(0, 10) : undefined;
       const resolvedPeriod = (startNorm || endNorm) ? `${startNorm || ''}${startNorm && endNorm ? ' / ' : ''}${endNorm || ''}` : (perCert.course_period ?? '');
-      
+
       // Intentar obtener id del curso de la asociación (priorizar _id de MongoDB)
       const courseId = courseItem?.course?._id ?? courseItem?.course?.id ?? courseItem?.course_id ?? courseItem?.id ?? undefined;
 
@@ -406,8 +465,10 @@ export async function generateAndDownloadZipDC3(
       const qrDataUrl = await generateQrDataUrl(qrUrl);
 
       // Contenido para UN solo usuario y UN curso
-      const pageContent = buildPageContent(cursante, perCourseCert, logoDataUrl, qrDataUrl, signatureDataUrl);
-
+      const pageContent = [
+        ...buildPageContent(cursante, perCourseCert, logoDataUrl, qrDataUrl, signatureDataUrl),
+        ...buildReversePage(),
+      ];
       const docDefinition: any = {
         pageSize: "LETTER",
         pageMargins: [40, 30, 40, 30],
@@ -439,4 +500,152 @@ export async function generateAndDownloadZipDC3(
 
   const zipContent = await zip.generateAsync({ type: "blob" });
   saveAs(zipContent, zipFileName);
+
+  function buildReversePage() {
+    const title = (text: string) => ({
+      text,
+      bold: true,
+      fontSize: 9,
+      alignment: 'center',
+      margin: [0, 0, 0, 5],
+    });
+
+    const tableHeader = (text: string) => ({
+      text,
+      bold: true,
+      fontSize: 7,
+      alignment: 'center',
+    });
+
+    const cell = (text: string) => ({
+      text,
+      fontSize: 7,
+    });
+
+    return [
+      { text: '', pageBreak: 'before' },
+
+      title('CLAVES Y DENOMINACIONES DE ÁREAS Y SUBÁREAS DEL CATÁLOGO NACIONAL DE OCUPACIONES'),
+
+      {
+        columns: [
+          {
+            width: '50%',
+            table: {
+              widths: ['auto', '*'],
+              body: [
+                [tableHeader('CLAVE'), tableHeader('DENOMINACIÓN')],
+                [cell('1'), cell('Cultivo, crianza y aprovechamiento')],
+                [cell('1.1'), cell('Agricultura y silvicultura')],
+                [cell('1.2'), cell('Ganadería')],
+                [cell('1.3'), cell('Pesca y acuacultura')],
+                [cell('2'), cell('Extracción y suministro')],
+                [cell('2.1'), cell('Exploración')],
+                [cell('2.2'), cell('Extracción')],
+                [cell('2.3'), cell('Refinación y beneficio')],
+                [cell('2.4'), cell('Provisión de energía')],
+                [cell('2.5'), cell('Provisión de agua')],
+                [cell('3'), cell('Construcción')],
+                [cell('3.1'), cell('Planeación y dirección de obras')],
+                [cell('3.2'), cell('Edificación y urbanización')],
+                [cell('3.3'), cell('Acabado')],
+                [cell('3.4'), cell('Instalación y mantenimiento')],
+                [cell('4'), cell('Tecnología')],
+                [cell('4.1'), cell('Mecánica')],
+                [cell('4.2'), cell('Electricidad')],
+                [cell('4.3'), cell('Electrónica')],
+                [cell('4.4'), cell('Informática')],
+                [cell('4.5'), cell('Telecomunicaciones')],
+                [cell('4.6'), cell('Procesos industriales')],
+                [cell('5'), cell('Procesamiento y fabricación')],
+                [cell('5.1'), cell('Minerales no metálicos')],
+                [cell('5.2'), cell('Metales')],
+                [cell('5.3'), cell('Alimentos y bebidas')],
+                [cell('5.4'), cell('Textiles y prendas de vestir')],
+                [cell('5.5'), cell('Materia orgánica')],
+                [cell('5.6'), cell('Productos químicos')],
+                [cell('5.7'), cell('Productos metálicos y de hule y plástico')],
+                [cell('5.8'), cell('Productos eléctricos y electrónicos')],
+                [cell('5.9'), cell('Productos impresos')],
+              ],
+            },
+            layout: 'lightHorizontalLines',
+          },
+
+          {
+            width: '50%',
+            table: {
+              widths: ['auto', '*'],
+              body: [
+                [tableHeader('CLAVE'), tableHeader('DENOMINACIÓN')],
+                [cell('6'), cell('Transporte')],
+                [cell('6.1'), cell('Ferroviario')],
+                [cell('6.2'), cell('Autotransporte')],
+                [cell('6.3'), cell('Aéreo')],
+                [cell('6.4'), cell('Marítimo y fluvial')],
+                [cell('6.5'), cell('Servicios de apoyo')],
+                [cell('7'), cell('Provisión de bienes y servicios')],
+                [cell('7.1'), cell('Comercio')],
+                [cell('7.2'), cell('Alimentación y hospedaje')],
+                [cell('7.3'), cell('Turismo')],
+                [cell('7.4'), cell('Deporte y esparcimiento')],
+                [cell('7.5'), cell('Servicios personales')],
+                [cell('7.6'), cell('Reparación de artículos de uso doméstico y personal')],
+                [cell('7.7'), cell('Limpieza')],
+                [cell('7.8'), cell('Servicio postal y mensajería')],
+                [cell('8'), cell('Gestión y soporte administrativo')],
+                [cell('8.1'), cell('Bolsa, banca y seguros')],
+                [cell('8.2'), cell('Administración')],
+                [cell('8.3'), cell('Servicios legales')],
+                [cell('9'), cell('Salud y protección social')],
+                [cell('9.1'), cell('Servicios médicos')],
+                [cell('9.2'), cell('Inspección sanitaria y del medio ambiente')],
+                [cell('9.3'), cell('Seguridad social')],
+                [cell('9.4'), cell('Protección de bienes y/o personas')],
+                [cell('10'), cell('Comunicación')],
+                [cell('10.1'), cell('Publicación')],
+                [cell('10.2'), cell('Radio, cine, televisión y teatro')],
+                [cell('10.3'), cell('Interpretación artística')],
+                [cell('10.4'), cell('Traducción e interpretación lingüística')],
+                [cell('10.5'), cell('Publicidad, propaganda y relaciones públicas')],
+                [cell('11'), cell('Desarrollo y extensión del conocimiento')],
+                [cell('11.1'), cell('Investigación')],
+                [cell('11.2'), cell('Enseñanza')],
+                [cell('11.3'), cell('Difusión cultural')],
+              ],
+            },
+            layout: 'lightHorizontalLines',
+          },
+        ],
+        columnGap: 10,
+        margin: [0, 5, 0, 10],
+      },
+
+      title('CLAVES Y DENOMINACIONES DEL CATÁLOGO DE ÁREAS TEMÁTICAS DE LOS CURSOS'),
+
+      {
+        table: {
+          widths: ['auto', '*', 'auto', '*'],
+          body: [
+            [cell('1000'), cell('Producción general'), cell('6000'), cell('Seguridad')],
+            [cell('2000'), cell('Servicios'), cell('7000'), cell('Desarrollo personal y familiar')],
+            [cell('3000'), cell('Administración, contabilidad y economía'), cell('8000'), cell('Uso de tecnologías de la información y comunicación')],
+            [cell('4000'), cell('Comercialización'), cell('9000'), cell('Participación social')],
+            [cell('5000'), cell('Mantenimiento y reparación'), '', ''],
+          ],
+        },
+        layout: 'lightHorizontalLines',
+        fontSize: 7,
+      },
+
+      {
+        text: 'DC-3\nREVERSO',
+        alignment: 'right',
+        fontSize: 7,
+        bold: true,
+        margin: [0, 10, 0, 0],
+      },
+    ];
+  }
+
 }

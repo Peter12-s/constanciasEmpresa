@@ -17,6 +17,7 @@ import { BasicPetition } from '../core/petition';
 import { ResponsiveDataTable, type Column } from "../components/ResponsiveDataTable";
 import { generateAndDownloadZipDC3, type DC3User, type DC3CertificateData } from '../components/createPDF';
 import { FaFileUpload, FaPlus } from "react-icons/fa";
+import pdfMake from "pdfmake/build/pdfmake";
 
 type Row = {
     id?: string;
@@ -490,6 +491,241 @@ export function ConstanciasEmpresaPage() {
         showNotification({ title: 'Error', message: 'No se encontró id de usuario. Inicia sesión para ver o crear peticiones.', color: 'red' });
     }, []);
 
+    async function imageUrlToDataUrl(url: string): Promise<string | undefined> {
+        try {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            return await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        } catch {
+            return undefined;
+        }
+    }
+
+    const generateLista = async (row: Row) => {
+        if (!row.id) return;
+        try {
+            // Obtener el certificado completo desde el backend para tener todos los datos
+            const res = await BasicPetition<any>({ endpoint: '/certificate', method: 'GET', params: { id: row.id }, showNotifications: false });
+            let raw = res ?? null;
+            if (Array.isArray(res)) {
+                if (res.length === 0) raw = null;
+                else {
+                    const found = res.find((x: any) => String(x._id ?? x.id) === String(row.id));
+                    raw = found ?? res[0];
+                }
+            }
+            if (!raw) {
+                showNotification({
+                    title: "Error",
+                    message: "No se encontró la información completa de la constancia",
+                    color: "red",
+                });
+                return;
+            }
+
+            const cursantes: any[] = raw.xlsx_object?.cursantes ?? [];
+            if (!Array.isArray(cursantes) || cursantes.length === 0) {
+                showNotification({
+                    title: "Atención",
+                    message: "No hay cursantes para esta constancia",
+                    color: "yellow",
+                });
+                return;
+            }
+
+            // Obtener todos los cursos asociados
+            const certificateCourses = Array.isArray(raw?.certificate_courses) ? raw.certificate_courses : [];
+            
+            // Si no hay cursos asociados, usar datos del certificado principal
+            if (certificateCourses.length === 0) {
+                const courseNameFromCertificate = raw?.course_name ?? raw?.course?.name ?? "";
+                const xlsxPeriod = raw?.xlsx_object?.course_period;
+                let effectivePeriod = xlsxPeriod ?? raw?.course_period ?? "";
+                if (!effectivePeriod) {
+                    const firstC = cursantes[0];
+                    if (firstC) {
+                        const a = firstC.fecha_inicio ?? firstC.fechaInicio ?? "";
+                        const b = firstC.fecha_fin ?? firstC.fechaFin ?? "";
+                        if (a || b) effectivePeriod = `${a} / ${b}`;
+                    }
+                }
+                certificateCourses.push({
+                    course: { name: courseNameFromCertificate },
+                    course_name: courseNameFromCertificate,
+                    start: effectivePeriod.split('/')[0]?.trim() ?? '',
+                    end: effectivePeriod.split('/')[1]?.trim() ?? '',
+                });
+            }
+
+            const logoDataUrl = await imageUrlToDataUrl("logo.png");
+
+            // Generar una página por cada curso
+            const pages: any[] = [];
+
+            certificateCourses.forEach((courseItem: any, courseIndex: number) => {
+                const courseName = courseItem?.course?.name ?? courseItem?.course_name ?? '';
+                const courseStart = courseItem?.start ?? courseItem?.fecha_inicio ?? '';
+                const courseEnd = courseItem?.end ?? courseItem?.fecha_fin ?? '';
+                const coursePeriod = (courseStart || courseEnd) ? `${courseStart || ''}${courseStart && courseEnd ? ' / ' : ''}${courseEnd || ''}` : '';
+
+                const headerTableBody = [
+                    [
+                        { text: "Empresa", bold: true, border: [false, false, false, false] },
+                        { text: raw.company_name ?? "", border: [false, false, false, false] },
+                    ],
+                    [
+                        { text: "Curso", bold: true, border: [false, false, false, false] },
+                        {
+                            border: [true, true, true, true],
+                            fillColor: '#549afbff',
+                            stack: [
+                                { text: courseName || '', bold: true, fontSize: 10, margin: [8, 6, 8, 2] },
+                                { text: coursePeriod || '', fontSize: 9, margin: [8, 2, 8, 6] },
+                            ],
+                        },
+                    ],
+                    [
+                        { text: "Agente Capacitador", bold: true, border: [false, false, false, false] },
+                        { text: raw.trainer_fullname ?? "", border: [false, false, false, false] },
+                    ],
+                    [
+                        { text: "Registro", bold: true, border: [false, false, false, false] },
+                        { text: raw.stps ?? raw._id ?? "", border: [false, false, false, false] },
+                    ],
+                ];
+
+                const tableBody: any[] = [];
+                tableBody.push([
+                    { text: "#", bold: true, alignment: "center" },
+                    { text: "NOMBRE COMPLETO", bold: true },
+                    { text: "CURP", bold: true },
+                    { text: "PUESTO DE TRABAJO", bold: true },
+                    { text: "FIRMA", bold: true },
+                ]);
+
+                cursantes.forEach((c, i) => {
+                    tableBody.push([
+                        { text: String(i + 1), alignment: "center" },
+                        { text: (c.nombre ?? "").toString().toUpperCase() },
+                        { text: (c.curp ?? "").toString().toUpperCase() },
+                        { text: c.ocupacion_especifica ?? "" },
+                        { text: "" },
+                    ]);
+                });
+
+                const pageContent = [
+                    {
+                        columns: [
+                            { width: 120, image: logoDataUrl, margin: [0, 0, 0, 0] },
+                            {
+                                width: "*",
+                                stack: [
+                                    {
+                                        text: "Registro de curso DOGROUP",
+                                        style: "title",
+                                        margin: [0, 0, 0, 8],
+                                        alignment: "right",
+                                    },
+                                    {
+                                        table: { widths: ["auto", "*"], body: headerTableBody },
+                                        layout: "noBorders",
+                                    },
+                                ],
+                                margin: [24, 0, 0, 0],
+                            },
+                        ],
+                        columnGap: 36,
+                        margin: [0, 0, 0, 12],
+                    },
+                    {
+                        table: {
+                            headerRows: 1,
+                            widths: [30, "*", 150, 120, 80],
+                            body: tableBody,
+                        },
+                        layout: {
+                            fillColor: (rowIndex: number) => (rowIndex === 0 ? "#CCCCCC" : null),
+                        },
+                    },
+                    { text: "\n\n" },
+                    {
+                        columns: [
+                            {
+                                width: "50%",
+                                stack: [
+                                    { text: "Instructor", bold: true, alignment: "center" },
+                                    { text: (raw.trainer_fullname ?? "").toString().toUpperCase(), alignment: "center" },
+                                    { text: "\n\n" },
+                                    {
+                                        canvas: [
+                                            { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
+                                        ],
+                                        margin: [0, 12, 0, 6],
+                                        alignment: "center",
+                                    },
+                                    { text: "Firma", margin: [0, 6, 0, 0], alignment: "center" },
+                                ],
+                                alignment: "center",
+                            },
+                            {
+                                width: "50%",
+                                stack: [
+                                    {
+                                        text: "Capacitación/ Representante",
+                                        bold: true,
+                                        alignment: "center",
+                                    },
+                                    { text: (raw.legal_representative ?? "").toString().toUpperCase(), alignment: "center" },
+                                    { text: "\n\n" },
+                                    {
+                                        canvas: [
+                                            { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
+                                        ],
+                                        margin: [0, 12, 0, 6],
+                                        alignment: "center",
+                                    },
+                                    { text: "Firma", margin: [0, 6, 0, 0], alignment: "center" },
+                                ],
+                                alignment: "center",
+                            },
+                        ],
+                        margin: [0, 28, 0, 0],
+                        columnGap: 10,
+                        alignment: "center",
+                    },
+                ];
+
+                // Agregar salto de página si no es el último curso
+                if (courseIndex < certificateCourses.length - 1) {
+                    pages.push(pageContent, { text: '', pageBreak: 'after' });
+                } else {
+                    pages.push(pageContent);
+                }
+            });
+
+            const docDefinition: any = {
+                pageSize: "A4",
+                pageMargins: [40, 30, 40, 30],
+                content: pages,
+                styles: { title: { fontSize: 14, bold: true, alignment: "center" } },
+                defaultStyle: { fontSize: 9 },
+            };
+            
+            pdfMake.createPdf(docDefinition).download(`lista_${raw._id ?? "lista"}.pdf`);
+        } catch (err) {
+            showNotification({
+                title: "Error",
+                message: "No se pudo generar el PDF",
+                color: "red",
+            });
+        }
+    };
+
     const handleGenerar = async (row: Row) => {
         // necesitamos el id para pedir el detalle
         const id = row.id;
@@ -647,14 +883,21 @@ export function ConstanciasEmpresaPage() {
                     data={rows}
                     initialPageSize={10}
                     actions={(row) => (
-                    <div style={{ gap: '8px', alignItems: 'center' , justifyContent: 'center'}}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center'}}>
                         <Button
                             onClick={() => handleGenerar(row)}
                             disabled={row.estado === 'pendiente'}
                             className={`action-btn small-action-btn`}
                             style={{ background: row.estado === 'pendiente' ? '#cccccc' : 'var(--olive-green)', color: row.estado === 'pendiente' ? '#666666' : 'white' }}
                         >
-                            Generar
+                            Constancias
+                        </Button>
+                        <Button
+                            onClick={() => void generateLista(row)}
+                            className={`action-btn small-action-btn`}
+                            style={{ background: row.estado === 'pendiente' ? '#cccccc' : 'var(--olive-green)', color: row.estado === 'pendiente' ? '#666666' : 'white' }}
+                        >
+                            Lista
                         </Button>
                         </div>
                     )}
