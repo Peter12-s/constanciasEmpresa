@@ -61,13 +61,26 @@ export function CursosPage() {
     // ELIMINAR CAPACITADOR
     if (deleteTarget.type === 'cap' && deleteTarget.capId !== undefined) {
       const capId = String(deleteTarget.capId);
-      setCapacitadores(prev => prev.filter(c => c.id !== capId));
-      setCoursesMap(prev => {
-        const copy = { ...prev };
-        delete copy[capId];
-        return copy;
-      });
-      showNotification({ title: "Capacitador eliminado", message: "Se ha eliminado el capacitador", color: "red" });
+      
+      (async () => {
+        try {
+          await BasicPetition<any>({ endpoint: `/trainer/${capId}`, method: 'DELETE', showNotifications: false });
+          showNotification({ title: "Capacitador eliminado", message: "Se ha eliminado el capacitador correctamente", color: "red" });
+          
+          // Eliminar localmente
+          setCapacitadores(prev => prev.filter(c => c.id !== capId));
+          setCoursesMap(prev => {
+            const copy = { ...prev };
+            delete copy[capId];
+            return copy;
+          });
+          
+          // Refrescar desde el servidor
+          await fetchTrainers();
+        } catch (e) {
+          showNotification({ title: "Error", message: "No se pudo eliminar el capacitador en el servidor", color: "red" });
+        }
+      })();
     }
 
     // ELIMINAR CURSO
