@@ -60,9 +60,10 @@ export function Login() {
         }, login.user_type);
       }
     } catch (err: any) {
-      // Verificar si el error es específicamente de contraseña incorrecta
-      const errorMessage = err?.response?.data?.message || err?.message || '';
-      const statusCode = err?.response?.status || err?.statusCode || 0;
+      // El error viene directamente con las propiedades status, message, data
+      const errorData = err?.data || {};
+      const errorMessage = errorData?.message || err?.message || '';
+      const statusCode = err?.status || err?.statusCode || 0;
       
       // Mostrar "Contraseña incorrecta" solo si es error 401 (Unauthorized) o el mensaje lo indica
       if (statusCode === 401 || errorMessage.toLowerCase().includes('password') || errorMessage.toLowerCase().includes('contraseña') || errorMessage.toLowerCase().includes('unauthorized')) {
