@@ -818,12 +818,13 @@ export function ConstanciasEmpresaPage() {
                                     },
                                     { text: (raw.legal_representative ?? "").toString().toUpperCase(), alignment: "center" },
                                     { text: "\n" },
-                                    { text: "\n\n\n", margin: [0, 0, 0, 0] },
+                                    // Espacio para la firma (igual que la columna del instructor)
+                                    { text: "\n", margin: [0, 0, 0, 30] },
                                     {
                                         canvas: [
                                             { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
                                         ],
-                                        margin: [0, 4, 0, 4],
+                                        margin: [0, 0, 0, 4],
                                         alignment: "center",
                                     },
                                     { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
