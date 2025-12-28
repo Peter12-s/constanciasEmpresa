@@ -780,19 +780,31 @@ export function ConstanciasEmpresaPage() {
                                     { text: "Instructor", bold: true, alignment: "center" },
                                     { text: (raw.trainer_fullname ?? "").toString().toUpperCase(), alignment: "center" },
                                     { text: "\n" },
-                                    ...(signatureDataUrl ? [
-                                        { image: signatureDataUrl, width: 150, height: 60, alignment: "center", margin: [0, 0, 0, 4] },
-                                    ] : [
-                                        { text: "\n\n\n", margin: [0, 0, 0, 0] },
-                                    ]),
                                     {
-                                        canvas: [
-                                            { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
+                                        stack: [
+                                            // Espacio para la firma
+                                            { text: "\n", margin: [0, 0, 0, 30] },
+                                            // Línea de firma
+                                            {
+                                                canvas: [
+                                                    { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
+                                                ],
+                                                margin: [0, 0, 0, 4],
+                                                alignment: "center",
+                                            },
+                                            { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
                                         ],
-                                        margin: [0, 4, 0, 4],
-                                        alignment: "center",
                                     },
-                                    { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
+                                    // Imagen de firma superpuesta con posición relativa
+                                    ...(signatureDataUrl ? [
+                                        {
+                                            image: signatureDataUrl,
+                                            width: 120,
+                                            height: 50,
+                                            alignment: "center",
+                                            relativePosition: { x: 0, y: -65 },
+                                        },
+                                    ] : []),
                                 ],
                                 alignment: "center",
                             },
