@@ -614,7 +614,7 @@ export function ConstanciasEmpresaPage() {
                         { text: String(i + 1), alignment: "center" },
                         { text: (c.nombre ?? "").toString().toUpperCase() },
                         { text: (c.curp ?? "").toString().toUpperCase() },
-                        { text: c.ocupacion_especifica ?? "" },
+                        { text: (c.puesto_trabajo ?? "").toString().toUpperCase() },
                         { text: "" },
                     ]);
                 });
@@ -828,7 +828,6 @@ export function ConstanciasEmpresaPage() {
             try {
                 await generateAndDownloadZipDC3FromTemplate(certificateData, cursantes, `constancias_${certificateData.id}.zip`);
             } catch (templateError) {
-                console.warn('Template no disponible, usando método tradicional:', templateError);
             }
         } catch (err: any) {
             try {

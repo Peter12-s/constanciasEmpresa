@@ -32,32 +32,32 @@ export interface DC3User {
 }
 
 // Coordenadas para llenar el formulario DC-3 (ajustar según el PDF real)
-const COORDS = {
+const COORDS: Record<string, any> = {
   // DATOS DEL TRABAJADOR
-  nombre: { x: 63, y: 643, size: 9 },
-  curp: { x: 50, y: 655, size: 9, spacing: 14 }, // Para letras individuales
-  ocupacion: { x: 350, y: 655, size: 8 },
-  puesto: { x: 50, y: 630, size: 9 },
+  nombre: { x: 63, y: 153, size: 9 },
+  curp: { x: 66, y: 174, size: 9, spacing: 18.3 }, // Para letras individuales
+  ocupacion: { x:396, y:174, xEnd:550, size: 9, centered: true },
+  puesto: { x:63, y:194, size: 9}, // Centrado automático
   
   // DATOS DE LA EMPRESA
-  empresa: { x: 50, y: 580, size: 9 },
-  rfc: { x: 50, y: 555, size: 10, spacing: 18 }, // Para letras individuales
+  empresa: { x:68, y:234, xEnd:545, size: 9, centered: true },
+  rfc: { x: 66, y: 256, size: 10, spacing: 18.3 }, // Para letras individuales
   
   // DATOS DEL PROGRAMA
-  curso: { x: 50, y: 505, size: 9 },
-  duracion: { x: 50, y: 475, size: 10 },
-  fechaInicio: { x: 150, y: 475, size: 9 },
-  fechaFin: { x: 350, y: 475, size: 9 },
-  area: { x: 50, y: 450, size: 9 },
-  capacitador: { x: 50, y: 425, size: 8 },
-  regStps: { x: 400, y: 425, size: 8 },
+  curso: { x:65, y:295, xEnd:545, size: 9, centered: true },
+  duracion:{ x:65, y:319, xEnd:183, size: 9, centered: true },
+  fechaInicio: { x: 251, y: 319,spacing: 18.3, size: 9 },
+  fechaFin: { x: 415, y: 319,spacing: 18.3, size: 9 },
+  area: { x:65, y:339, xEnd:545, size: 9, centered: true },
+  capacitador: { x: 63, y: 360, size: 9 },
+  regStps: { x: 266, y: 360, size: 9 },
   
   // FIRMAS
-  repLegal: { x: 200, y: 150, size: 7 },
-  repTrab: { x: 400, y: 150, size: 7 },
+  repLegal: { x:263, y:420, xEnd:386, size: 7, centered: true },
+  repTrab:  { x:412, y:420, xEnd:534, size: 7, centered: true },
   
   // QR
-  qr: { x: 500, y: 720, width: 80, height: 80 }
+  qr: { x: 525, y: 75, width: 80, height: 80 }
 };
 
 async function generateQrDataUrl(url: string): Promise<string> {
@@ -88,7 +88,6 @@ async function fillPDFTemplate(
   
   // Cargar el template del PDF - usar ruta absoluta del dominio
   const templateUrl = `${window.location.protocol}//${window.location.host}/SolicitudDC3.pdf`;
-  console.log('🔍 Intentando cargar PDF desde:', templateUrl);
   
   const response = await fetch(templateUrl);
   if (!response.ok) {
@@ -96,7 +95,6 @@ async function fillPDFTemplate(
   }
   
   const existingPdfBytes = await response.arrayBuffer();
-  console.log('✅ Template PDF cargado correctamente');
   
   const pdfDoc = await PDFDocument.load(existingPdfBytes);
   const pages = pdfDoc.getPages();
@@ -112,16 +110,33 @@ async function fillPDFTemplate(
   // Helper para texto seguro
   const safeText = (text: any): string => (text || '').toString().toUpperCase();
   
+  // Helper para dibujar texto (con centrado automático si aplica)
+  const drawField = (text: string, coordKey: string, font: any) => {
+    const coord = COORDS[coordKey];
+    if (!text || !coord) return;
+    
+    let xPos = coord.x;
+    
+    // Aplicar centrado si está configurado
+    if (coord.centered && coord.xEnd) {
+      const textWidth = font.widthOfTextAtSize(text, coord.size);
+      const boxWidth = coord.xEnd - coord.x;
+      xPos = coord.x + (boxWidth - textWidth) / 2;
+    }
+    
+    firstPage.drawText(text, {
+      x: xPos,
+      y: height - coord.y,
+      size: coord.size,
+      font: font,
+      color: rgb(0, 0, 0)
+    });
+  };
+  
   // DATOS DEL TRABAJADOR
   // Nombre
   if (cursante.nombre) {
-    firstPage.drawText(safeText(cursante.nombre), {
-      x: COORDS.nombre.x,
-      y: height - COORDS.nombre.y,
-      size: COORDS.nombre.size,
-      font: fontBold,
-      color: rgb(0, 0, 0)
-    });
+    drawField(safeText(cursante.nombre), 'nombre', fontBold);
   }
   
   // CURP (letra por letra)
@@ -140,24 +155,12 @@ async function fillPDFTemplate(
   
   // Ocupación
   if (cursante.ocupacion_especifica) {
-    firstPage.drawText(safeText(cursante.ocupacion_especifica), {
-      x: COORDS.ocupacion.x,
-      y: height - COORDS.ocupacion.y,
-      size: COORDS.ocupacion.size,
-      font: fontBold,
-      color: rgb(0, 0, 0)
-    });
+    drawField(safeText(cursante.ocupacion_especifica), 'ocupacion', fontBold);
   }
   
   // Puesto
   if (cursante.puesto_trabajo) {
-    firstPage.drawText(safeText(cursante.puesto_trabajo), {
-      x: COORDS.puesto.x,
-      y: height - COORDS.puesto.y,
-      size: COORDS.puesto.size,
-      font: fontBold,
-      color: rgb(0, 0, 0)
-    });
+    drawField(safeText(cursante.puesto_trabajo), 'puesto', fontBold);
   }
   
   // DATOS DE LA EMPRESA
@@ -316,13 +319,12 @@ async function fillPDFTemplate(
       const signImage = await pdfDoc.embedPng(signImageBytes);
       
       firstPage.drawImage(signImage, {
-        x: 50,
-        y: height - 200,
+        x: 140,
+        y: 397,
         width: 150,
         height: 60
       });
     } catch (e) {
-      console.warn('No se pudo insertar la firma:', e);
     }
   }
   
@@ -385,7 +387,6 @@ export async function generateAndDownloadZipDC3FromTemplate(
         }
       }
     } catch (e) {
-      console.warn('Error cargando firma:', e);
       signatureDataUrl = undefined;
     }
     

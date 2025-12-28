@@ -193,6 +193,17 @@
     .delete-btn:hover {
       color: #ff6b6b;
     }
+    
+    .edit-btn {
+      color: #4ec9b0;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0 5px;
+    }
+    
+    .edit-btn:hover {
+      color: #6ee7b7;
+    }
   </style>
 </head>
 <body>
@@ -228,12 +239,20 @@
         <input type="number" id="fieldY" value="0">
       </div>
       <div class="field-row">
+        <label>X End:</label>
+        <input type="number" id="fieldXEnd" value="0" placeholder="opcional">
+      </div>
+      <div class="field-row">
         <label>Tamaño:</label>
         <input type="number" id="fieldSize" value="9" step="0.5">
       </div>
       <div class="field-row">
         <label>Espaciado:</label>
         <input type="number" id="fieldSpacing" value="0" step="0.5" placeholder="0">
+      </div>
+      <div class="field-row">
+        <label>Centrado:</label>
+        <input type="checkbox" id="fieldCentered" style="width: auto;">
       </div>
       <button onclick="addField()">Agregar Campo</button>
     </div>
@@ -260,17 +279,22 @@
     
     let pdfDoc = null;
     let pageHeight = 0;
+    let pageHeightReal = 0; // Altura real del PDF sin escala
     let scale = 1.5;
     let fields = [];
     let markers = [];
     
     // Cargar el PDF
     async function loadPDF() {
-      const url = './public/Solicitud de DC3-Formato DC3.pdf';
+      const url = './public/SolicitudDC3.pdf';
       
       try {
         pdfDoc = await pdfjsLib.getDocument(url).promise;
         const page = await pdfDoc.getPage(1);
+        
+        // Obtener tamaño real del PDF (sin escala)
+        const viewportReal = page.getViewport({ scale: 1 });
+        pageHeightReal = viewportReal.height;
         
         const viewport = page.getViewport({ scale });
         pageHeight = viewport.height;
@@ -286,35 +310,42 @@
         
         await page.render({ canvasContext: context, viewport }).promise;
         
-        console.log('PDF cargado. Altura de página:', pageHeight / scale);
+        // console.log('PDF cargado. Altura real:', pageHeightReal, 'Altura display:', pageHeight);
       } catch (error) {
-        console.error('Error cargando PDF:', error);
+        // console.error('Error cargando PDF:', error);
         alert('Error: No se pudo cargar el PDF. Asegúrate de que el archivo esté en public/');
       }
     }
     
     // Click en el canvas
-    document.getElementById('canvasContainer').addEventListener('click', (e) => {
+    document.getElementById('pdfCanvas').addEventListener('click', (e) => {
       const canvas = document.getElementById('pdfCanvas');
       const rect = canvas.getBoundingClientRect();
       
-      // Coordenadas del canvas (display)
+      // Coordenadas del canvas (display) - sin scroll, directamente del evento
       const displayX = e.clientX - rect.left;
       const displayY = e.clientY - rect.top;
       
       // Coordenadas reales del PDF (escala 1)
       const x = Math.round(displayX / scale);
-      const y = Math.round((pageHeight - displayY) / scale); // Invertir Y
+      
+      // Para pdf-lib: Y desde abajo, pero el canvas muestra desde arriba
+      // Entonces: y = displayY / scale (sin invertir)
+      const y = Math.round(displayY / scale);
       
       document.getElementById('coordDisplay').innerHTML = `
         Click capturado:<br>
-        x: ${x}, y: ${y}
+        x: ${x}, y: ${y}<br>
+        <small style="color: #858585;">Display: ${Math.round(displayX)}, ${Math.round(displayY)}<br>
+        Escala: ${scale}<br>
+        Altura PDF: ${pageHeightReal}<br>
+        Y desde abajo: ${Math.round(pageHeightReal - y)}</small>
       `;
       
       document.getElementById('fieldX').value = x;
       document.getElementById('fieldY').value = y;
       
-      // Agregar marcador visual
+      // Agregar marcador visual en la posición exacta del clic
       addMarker(displayX, displayY);
     });
     
@@ -323,7 +354,8 @@
       marker.className = 'marker';
       marker.style.left = x + 'px';
       marker.style.top = y + 'px';
-      document.getElementById('canvasContainer').appendChild(marker);
+      const canvasContainer = document.getElementById('canvasContainer');
+      canvasContainer.appendChild(marker);
       markers.push(marker);
     }
     
@@ -331,19 +363,23 @@
       const name = document.getElementById('fieldName').value.trim();
       const x = parseInt(document.getElementById('fieldX').value);
       const y = parseInt(document.getElementById('fieldY').value);
+      const xEnd = parseInt(document.getElementById('fieldXEnd').value) || 0;
       const size = parseFloat(document.getElementById('fieldSize').value);
       const spacing = parseFloat(document.getElementById('fieldSpacing').value) || 0;
+      const centered = document.getElementById('fieldCentered').checked;
       
       if (!name) {
         alert('Ingresa un nombre para el campo');
         return;
       }
       
-      fields.push({ name, x, y, size, spacing });
+      fields.push({ name, x, y, xEnd, size, spacing, centered });
       updateFieldList();
       
       // Limpiar inputs
       document.getElementById('fieldName').value = '';
+      document.getElementById('fieldXEnd').value = '0';
+      document.getElementById('fieldCentered').checked = false;
       document.getElementById('fieldName').focus();
     }
     
@@ -355,18 +391,50 @@
         return;
       }
       
-      list.innerHTML = fields.map((f, i) => `
-        <div class="coord-item">
-          <span style="color: #4ec9b0;">${f.name}:</span>
-          <span style="color: #b5cea8;">x:${f.x} y:${f.y} size:${f.size}${f.spacing ? ` sp:${f.spacing}` : ''}</span>
-          <span class="delete-btn" onclick="deleteField(${i})">✕</span>
-        </div>
-      `).join('');
+      list.innerHTML = fields.map((f, i) => {
+        let info = `x:${f.x} y:${f.y}`;
+        if (f.xEnd > 0) info += ` xEnd:${f.xEnd}`;
+        info += ` size:${f.size}`;
+        if (f.spacing) info += ` sp:${f.spacing}`;
+        if (f.centered) info += ` <span style="color: #4ec9b0;">✓centrado</span>`;
+        
+        return `
+          <div class="coord-item">
+            <span style="color: #4ec9b0;">${f.name}:</span>
+            <span style="color: #b5cea8;">${info}</span>
+            <span>
+              <span class="edit-btn" onclick="editField(${i})" title="Editar">✏️</span>
+              <span class="delete-btn" onclick="deleteField(${i})" title="Eliminar">✕</span>
+            </span>
+          </div>
+        `;
+      }).join('');
     }
     
     function deleteField(index) {
       fields.splice(index, 1);
       updateFieldList();
+    }
+    
+    function editField(index) {
+      const field = fields[index];
+      
+      // Cargar datos en el formulario
+      document.getElementById('fieldName').value = field.name;
+      document.getElementById('fieldX').value = field.x;
+      document.getElementById('fieldY').value = field.y;
+      document.getElementById('fieldXEnd').value = field.xEnd || 0;
+      document.getElementById('fieldSize').value = field.size;
+      document.getElementById('fieldSpacing').value = field.spacing || 0;
+      document.getElementById('fieldCentered').checked = field.centered || false;
+      
+      // Eliminar el campo actual (se agregará de nuevo al hacer clic en "Agregar Campo")
+      fields.splice(index, 1);
+      updateFieldList();
+      
+      // Focus en el nombre
+      document.getElementById('fieldName').focus();
+      document.getElementById('fieldName').select();
     }
     
     function clearAll() {
@@ -387,7 +455,7 @@
       }
       
       try {
-        const url = './public/Solicitud de DC3-Formato DC3.pdf';
+        const url = './public/SolicitudDC3.pdf';
         const existingPdfBytes = await fetch(url).then(res => res.arrayBuffer());
         
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
@@ -396,30 +464,48 @@
         const { height } = firstPage.getSize();
         
         const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+        const fontBold = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
         
         // Llenar cada campo con datos de prueba
         fields.forEach(field => {
           let text = field.name.toUpperCase();
+          let xPos = field.x;
+          
+          // Aplicar centrado si está marcado
+          if (field.centered && field.xEnd > 0) {
+            const textWidth = fontBold.widthOfTextAtSize(text, field.size);
+            const boxWidth = field.xEnd - field.x;
+            xPos = field.x + (boxWidth - textWidth) / 2;
+            // console.log('🎯 Centrado:', {
+            //   campo: field.name,
+            //   texto: text,
+            //   xInicial: field.x,
+            //   xFinal: field.xEnd,
+            //   xCentrado: xPos,
+            //   anchoTexto: textWidth,
+            //   anchoBox: boxWidth
+            // });
+          }
           
           if (field.spacing > 0) {
             // Campo con espaciado (como CURP o RFC)
-            const chars = text.padEnd(18, 'X').slice(0, 18).split('');
+            const chars = text.padEnd(18, '').slice(0, 18).split('');
             chars.forEach((char, i) => {
               firstPage.drawText(char, {
-                x: field.x + (i * field.spacing),
+                x: xPos + (i * field.spacing),
                 y: height - field.y,
                 size: field.size,
-                font: font,
+                font: fontBold,
                 color: PDFLib.rgb(1, 0, 0) // Rojo para distinguir
               });
             });
           } else {
             // Campo normal
             firstPage.drawText(text, {
-              x: field.x,
+              x: xPos,
               y: height - field.y,
               size: field.size,
-              font: font,
+              font: fontBold,
               color: PDFLib.rgb(1, 0, 0) // Rojo para distinguir
             });
           }
@@ -431,7 +517,7 @@
         window.open(url2, '_blank');
         
       } catch (error) {
-        console.error('Error generando PDF de prueba:', error);
+        // console.error('Error generando PDF de prueba:', error);
         alert('Error al generar PDF de prueba: ' + error.message);
       }
     }
@@ -444,11 +530,11 @@
       
       const coordsObj = {};
       fields.forEach(f => {
-        if (f.spacing > 0) {
-          coordsObj[f.name] = { x: f.x, y: f.y, size: f.size, spacing: f.spacing };
-        } else {
-          coordsObj[f.name] = { x: f.x, y: f.y, size: f.size };
-        }
+        const coord = { x: f.x, y: f.y, size: f.size };
+        if (f.xEnd > 0) coord.xEnd = f.xEnd;
+        if (f.spacing > 0) coord.spacing = f.spacing;
+        if (f.centered) coord.centered = true;
+        coordsObj[f.name] = coord;
       });
       
       const output = `const COORDS = ${JSON.stringify(coordsObj, null, 2)};`;
@@ -461,7 +547,7 @@
         prompt('Copia estas coordenadas:', output);
       });
       
-      console.log(output);
+      // console.log(output);
     }
     
     // Cargar PDF al iniciar

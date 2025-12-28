@@ -18,6 +18,7 @@ import { generateAndDownloadZipDC3, type DC3User, type DC3CertificateData } from
 import { generateAndDownloadZipDC3FromTemplate } from "../components/createPDFFromTemplate";
 import { FaExclamationTriangle } from "react-icons/fa";
 import pdfMake from "pdfmake/build/pdfmake";
+import appConfig from "../core/constants/appConfig";
 
 // Minimal types used in this file
 type Row = {
@@ -29,6 +30,9 @@ type Row = {
   estado: "pendiente" | "aprobada";
   courses?: Array<{ course_name: string; start: string; end: string }>;
 };
+
+// Cache para firmas digitales
+const signatureCache = new Map<string, string | undefined>();
 
 export function ConstanciasAdminPage() {
   const isMobile = useMediaQuery('(max-width: 600px)');
@@ -515,6 +519,32 @@ export function ConstanciasAdminPage() {
 
       const logoDataUrl = await imageUrlToDataUrl("logo.png");
 
+      // Cargar firma digital si aplica
+      let signatureDataUrl: string | undefined = undefined;
+      try {
+        const signId = raw?.sign ?? raw?.trainer?.sign ?? undefined;
+        
+          if (signatureCache.has(signId)) {
+            signatureDataUrl = signatureCache.get(signId);
+          } else {
+            const driveUrl = `${appConfig.BACKEND_URL}/google/proxy-drive?id=${encodeURIComponent(signId)}`;
+            const resp = await fetch(driveUrl);
+            if (resp.ok) {
+              const blob = await resp.blob();
+              signatureDataUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(String(reader.result));
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+              signatureCache.set(signId, signatureDataUrl);
+            }
+          
+        }
+      } catch (e) {
+        signatureDataUrl = undefined;
+      }
+
       // Generar una página por cada curso
       const pages: any[] = [];
 
@@ -564,7 +594,7 @@ export function ConstanciasAdminPage() {
             { text: String(i + 1), alignment: "center" },
             { text: (c.nombre ?? "").toString().toUpperCase() },
             { text: (c.curp ?? "").toString().toUpperCase() },
-            { text: c.ocupacion_especifica ?? "" },
+            { text: (c.puesto_trabajo ?? "").toString().toUpperCase() },
             { text: "" },
           ]);
         });
@@ -612,13 +642,17 @@ export function ConstanciasAdminPage() {
                   { text: "Instructor", bold: true, alignment: "center" },
                   { text: (raw.trainer_fullname ?? "").toString().toUpperCase(), alignment: "center" },
                   { text: "\n\n" },
-                  {
-                    canvas: [
-                      { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
-                    ],
-                    margin: [0, 12, 0, 6],
-                    alignment: "center",
-                  },
+                  ...(signatureDataUrl ? [
+                    { image: signatureDataUrl, width: 120, height: 50, alignment: "center", margin: [0, 0, 0, 6] },
+                  ] : [
+                    {
+                      canvas: [
+                        { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
+                      ],
+                      margin: [0, 12, 0, 6],
+                      alignment: "center",
+                    },
+                  ]),
                   { text: "Firma", margin: [0, 6, 0, 0], alignment: "center" },
                 ],
                 alignment: "center",
@@ -756,7 +790,6 @@ export function ConstanciasAdminPage() {
       try {
         await generateAndDownloadZipDC3FromTemplate(certificateData, cursantes, `constancias_${certificateData.id}.zip`);
       } catch (templateError) {
-        console.warn('Template no disponible, usando método tradicional:', templateError);
       }
     } catch (err: any) {
       const serverData = err?.data ?? err?.originalError?.response?.data ?? err?.response?.data ?? null;
