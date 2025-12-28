@@ -278,7 +278,7 @@ async function fillPDFTemplate(
       
       firstPage.drawImage(signImage, {
         x: 55,
-        y: height - 490,
+        y: height - 470,
         width: 220,
         height: 150
       });
