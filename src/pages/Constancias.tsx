@@ -49,7 +49,7 @@ export function ConstanciasAdminPage() {
   const [repTrabAll, setRepTrabAll] = useState('');
   const [areaTematicaAll, setAreaTematicaAll] = useState('6000 Seguridad');
   const [capacitadorAll, setCapacitadorAll] = useState('');
-  
+
   const [fechaInicioAll, setFechaInicioAll] = useState('');
   const [fechaFinAll, setFechaFinAll] = useState('');
 
@@ -349,10 +349,10 @@ export function ConstanciasAdminPage() {
           });
           const prevStart = match?.start ?? match?.fecha_inicio ?? '';
           const prevEnd = match?.end ?? match?.fecha_fin ?? '';
-          const prevStartNorm = String(prevStart ?? '').slice(0,10);
-          const prevEndNorm = String(prevEnd ?? '').slice(0,10);
-          const newStartNorm = String(u.fechaInicio ?? '').slice(0,10);
-          const newEndNorm = String(u.fechaFin ?? '').slice(0,10);
+          const prevStartNorm = String(prevStart ?? '').slice(0, 10);
+          const prevEndNorm = String(prevEnd ?? '').slice(0, 10);
+          const newStartNorm = String(u.fechaInicio ?? '').slice(0, 10);
+          const newEndNorm = String(u.fechaFin ?? '').slice(0, 10);
           const courseId = match?.course?._id ?? match?.course_id ?? match?.course?.id ?? match?._id ?? match?.id ?? undefined;
           if ((prevStartNorm !== newStartNorm || prevEndNorm !== newEndNorm) && courseId) {
             const sIso = toIso(u.fechaInicio) ?? undefined;
@@ -372,10 +372,10 @@ export function ConstanciasAdminPage() {
           const prevC = prevCursantes.find((pc: any) => String(pc.curp ?? '').trim().toUpperCase() === curp.toUpperCase());
           const prevStart = prevC?.fecha_inicio ?? prevC?.fechaInicio ?? '';
           const prevEnd = prevC?.fecha_fin ?? prevC?.fechaFin ?? '';
-          const prevStartNorm = String(prevStart ?? '').slice(0,10);
-          const prevEndNorm = String(prevEnd ?? '').slice(0,10);
-          const newStartNorm = String(u.fechaInicio ?? '').slice(0,10);
-          const newEndNorm = String(u.fechaFin ?? '').slice(0,10);
+          const prevStartNorm = String(prevStart ?? '').slice(0, 10);
+          const prevEndNorm = String(prevEnd ?? '').slice(0, 10);
+          const newStartNorm = String(u.fechaInicio ?? '').slice(0, 10);
+          const newEndNorm = String(u.fechaFin ?? '').slice(0, 10);
           if (prevStartNorm !== newStartNorm || prevEndNorm !== newEndNorm || (prevC && (
             (String(prevC.nombre ?? '').trim() !== String(u.nombreCompleto ?? '').trim()) ||
             (String(prevC.puesto_trabajo ?? prevC.puestoTrabajo ?? '').trim() !== String(u.puestoTrabajo ?? '').trim()) ||
@@ -581,7 +581,7 @@ export function ConstanciasAdminPage() {
 
       // Obtener todos los cursos asociados
       const certificateCourses = Array.isArray(raw?.certificate_courses) ? raw.certificate_courses : [];
-      
+
       // Si no hay cursos asociados, usar datos del certificado principal
       if (certificateCourses.length === 0) {
         const courseNameFromCertificate = raw?.course_name ?? raw?.course?.name ?? "";
@@ -609,25 +609,25 @@ export function ConstanciasAdminPage() {
       let signatureDataUrl: string | undefined = undefined;
       try {
         const signId = raw?.sign ?? raw?.trainer?.sign ?? undefined;
-        
-          if (signatureCache.has(signId)) {
-            signatureDataUrl = signatureCache.get(signId);
-          } else {
-            const driveUrl = `${appConfig.BACKEND_URL}/google/proxy-drive?id=${encodeURIComponent(signId)}`;
-            const resp = await fetch(driveUrl);
-            if (resp.ok) {
-              const blob = await resp.blob();
-              const rawDataUrl = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(String(reader.result));
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-              });
-              // Recortar espacios en blanco
-              signatureDataUrl = await trimImageWhitespace(rawDataUrl);
-              signatureCache.set(signId, signatureDataUrl);
-            }
-          
+
+        if (signatureCache.has(signId)) {
+          signatureDataUrl = signatureCache.get(signId);
+        } else {
+          const driveUrl = `${appConfig.BACKEND_URL}/google/proxy-drive?id=${encodeURIComponent(signId)}`;
+          const resp = await fetch(driveUrl);
+          if (resp.ok) {
+            const blob = await resp.blob();
+            const rawDataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(String(reader.result));
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+            // Recortar espacios en blanco
+            signatureDataUrl = await trimImageWhitespace(rawDataUrl);
+            signatureCache.set(signId, signatureDataUrl);
+          }
+
         }
       } catch (e) {
         signatureDataUrl = undefined;
@@ -730,19 +730,31 @@ export function ConstanciasAdminPage() {
                   { text: "Instructor", bold: true, alignment: "center" },
                   { text: (raw.trainer_fullname ?? "").toString().toUpperCase(), alignment: "center" },
                   { text: "\n" },
-                  ...(signatureDataUrl ? [
-                    { image: signatureDataUrl, width: 150, height: 60, alignment: "center", margin: [0, 0, 0, 4] },
-                  ] : [
-                    { text: "\n\n\n", margin: [0, 0, 0, 0] },
-                  ]),
                   {
-                      canvas: [
-                        { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
-                      ],
-                      margin: [0, 4, 0, 4],
+                    stack: [
+                      // Espacio para la firma
+                      { text: "\n", margin: [0, 0, 0, 30] },
+                      // Línea de firma
+                      {
+                        canvas: [
+                          { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
+                        ],
+                        margin: [0, 0, 0, 4],
+                        alignment: "center",
+                      },
+                      { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
+                    ],
+                  },
+                  // Imagen de firma superpuesta con posición relativa
+                  ...(signatureDataUrl ? [
+                    {
+                      image: signatureDataUrl,
+                      width: 120,
+                      height: 50,
                       alignment: "center",
+                      relativePosition: { x: 0, y: -65 },
                     },
-                  { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
+                  ] : []),
                 ],
                 alignment: "center",
               },
@@ -756,12 +768,12 @@ export function ConstanciasAdminPage() {
                   },
                   { text: (raw.legal_representative ?? "").toString().toUpperCase(), alignment: "center" },
                   { text: "\n" },
-                  { text: "\n\n\n", margin: [0, 0, 0, 0] },
+                  { text: "\n", margin: [0, 0, 0, 30] },
                   {
                     canvas: [
                       { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
                     ],
-                    margin: [0, 4, 0, 4],
+                    margin: [0, 0, 0, 4],
                     alignment: "center",
                   },
                   { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
@@ -790,7 +802,7 @@ export function ConstanciasAdminPage() {
         styles: { title: { fontSize: 14, bold: true, alignment: "center" } },
         defaultStyle: { fontSize: 9 },
       };
-      
+
       pdfMake.createPdf(docDefinition).download(`lista_${raw._id ?? "lista"}.pdf`);
     } catch (err) {
       showNotification({
@@ -847,19 +859,19 @@ export function ConstanciasAdminPage() {
       }
 
       const cursantes: Array<DC3User & { certificate_overrides?: Partial<DC3CertificateData> }> = [];
-      
+
       rawCursantes.forEach((c: any) => {
         // Si hay certificate_courses disponibles y hay más de uno, generar un PDF por cada curso
         if (Array.isArray(item.certificate_courses) && item.certificate_courses.length > 0) {
           const cursoInteres = c.curso_interes ?? c.cursoInteres ?? '';
-          
+
           // Si el cursante tiene curso_interes específico, solo generar para ese curso
           if (cursoInteres) {
             const matchedCourse = item.certificate_courses.find((cc: any) => {
               const ccName = cc?.course?.name ?? cc?.course_name ?? '';
               return ccName === cursoInteres;
             });
-            
+
             if (matchedCourse) {
               const courseIdForCursante = matchedCourse?.course?._id ?? matchedCourse?.course_id ?? matchedCourse?.course?.id ?? undefined;
               const courseNameForCursante = matchedCourse?.course?.name ?? matchedCourse?.course_name ?? undefined;
@@ -867,7 +879,7 @@ export function ConstanciasAdminPage() {
               const startDate = matchedCourse?.start ?? '';
               const endDate = matchedCourse?.end ?? '';
               const coursePeriodForCursante = (startDate && endDate) ? `${startDate} / ${endDate}` : undefined;
-              
+
               cursantes.push({
                 nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '',
                 curp: c.curp ?? '',
@@ -893,7 +905,7 @@ export function ConstanciasAdminPage() {
               const startDate = matchedCourse?.start ?? '';
               const endDate = matchedCourse?.end ?? '';
               const coursePeriodForCursante = (startDate && endDate) ? `${startDate} / ${endDate}` : undefined;
-              
+
               cursantes.push({
                 nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '',
                 curp: c.curp ?? '',
@@ -919,7 +931,7 @@ export function ConstanciasAdminPage() {
           const cursanteStart = c.fecha_inicio ?? '';
           const cursanteEnd = c.fecha_fin ?? '';
           const coursePeriodForCursante = (cursanteStart && cursanteEnd) ? `${cursanteStart} / ${cursanteEnd}` : item.course_period ?? undefined;
-          
+
           cursantes.push({
             nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '',
             curp: c.curp ?? '',
@@ -954,7 +966,7 @@ export function ConstanciasAdminPage() {
       } catch (e) { /* ignore */ }
 
       showNotification({ title: 'Generando...', message: 'Generando ZIP con constancias.', color: 'blue', loading: true });
-      
+
       // Intentar usar template primero, si falla usar método tradicional
       try {
         await generateAndDownloadZipDC3FromTemplate(certificateData, cursantes, `constancias_${certificateData.id}.zip`);
@@ -978,13 +990,13 @@ export function ConstanciasAdminPage() {
           <Button size="xs" className="action-btn small-action-btn" onClick={() => { handleVerificar(row); }} style={{ backgroundColor: "var(--olive-green)", color: "white" }}>Verificar</Button>
           <Button size="xs" className="action-btn small-action-btn" onClick={() => void handleGeneratePDFs(row)} style={{ backgroundColor: "var(--olive-green)", color: "white" }}>Generar PDFs</Button>
           <Button
-              size="xs"
-              className="action-btn small-action-btn"
-              onClick={() => void generateLista(row)}
-              style={{ backgroundColor: "var(--olive-green)", color: "white" }}
-            >
-              Lista
-            </Button>
+            size="xs"
+            className="action-btn small-action-btn"
+            onClick={() => void generateLista(row)}
+            style={{ backgroundColor: "var(--olive-green)", color: "white" }}
+          >
+            Lista
+          </Button>
         </Group>
       )} />
 
@@ -1007,7 +1019,7 @@ export function ConstanciasAdminPage() {
 
           <div style={{ display: "flex", gap: 8, alignItems: "center", width: isMobile ? '100%' : undefined }}>
             <Text>Área temática:</Text>
-            <Select value={areaTematicaAll} onChange={(v) => v && setAreaTematicaAll(v)} data={[ '6000 Seguridad','1000 Producción general','2000 Servicios','3000 Administración, contabilidad y economía','4000 Comercialización','5000 Mantenimiento y reparación','7000 Desarrollo personal y familiar','8000 Uso de tecnologías de la información y comunicación','9000 Participación Social' ]} style={{ width: isMobile ? '100%' : isTablet ? 200 : 220 }} />
+            <Select value={areaTematicaAll} onChange={(v) => v && setAreaTematicaAll(v)} data={['6000 Seguridad', '1000 Producción general', '2000 Servicios', '3000 Administración, contabilidad y economía', '4000 Comercialización', '5000 Mantenimiento y reparación', '7000 Desarrollo personal y familiar', '8000 Uso de tecnologías de la información y comunicación', '9000 Participación Social']} style={{ width: isMobile ? '100%' : isTablet ? 200 : 220 }} />
           </div>
         </div>
 
@@ -1093,7 +1105,7 @@ export function ConstanciasAdminPage() {
                                 return copy;
                               });
                             }}
-                            data={["01 Cultivo, crianza y aprovechamiento","02 Extracción y suministro","03 Construcción","04 Tecnología","05 Procesamiento y fabricación","06 Transporte","07 Provisión de bienes y servicios","08 Gestión y soporte administrativo","09 Salud y protección social","10 Comunicación","11 Desarrollo y extensión del conocimiento"]}
+                            data={["01 Cultivo, crianza y aprovechamiento", "02 Extracción y suministro", "03 Construcción", "04 Tecnología", "05 Procesamiento y fabricación", "06 Transporte", "07 Provisión de bienes y servicios", "08 Gestión y soporte administrativo", "09 Salud y protección social", "10 Comunicación", "11 Desarrollo y extensión del conocimiento"]}
                           />
                         </div>
                       </div>
@@ -1111,7 +1123,7 @@ export function ConstanciasAdminPage() {
                             const hasMultipleCourses = g.indices.length > 1;
                             const startCounts: Record<string, number> = {};
                             const ranges: Array<{ start: string; end: string }> = [];
-                            
+
                             if (hasMultipleCourses) {
                               g.indices.forEach((ix2) => {
                                 const it2 = selectedRowUsers[ix2] ?? {};
@@ -1151,7 +1163,7 @@ export function ConstanciasAdminPage() {
                                 // Verificar que los cursos sean diferentes
                                 const coursesInGroup = g.indices.map(idx => String(selectedRowUsers[idx]?.cursoInteres ?? '').trim()).filter(Boolean);
                                 const uniqueCoursesInGroup = new Set(coursesInGroup);
-                                
+
                                 // Solo marcar conflicto si hay múltiples cursos diferentes
                                 if (uniqueCoursesInGroup.size > 1) {
                                   // mismo inicio repetido
@@ -1202,7 +1214,7 @@ export function ConstanciasAdminPage() {
           Object.values(groupedByName).forEach((indices) => {
             // Solo verificar conflictos si este cursante tiene múltiples cursos
             if (indices.length <= 1) return;
-            
+
             // Verificar si los cursos son diferentes (no solo múltiples registros del mismo curso)
             const uniqueCourses = new Set<string>();
             indices.forEach((ix2) => {
@@ -1210,10 +1222,10 @@ export function ConstanciasAdminPage() {
               const courseName = String(it2.cursoInteres ?? '').trim();
               if (courseName) uniqueCourses.add(courseName);
             });
-            
+
             // Si todos los registros son del mismo curso, no hay conflicto (múltiples cursantes en un curso)
             if (uniqueCourses.size <= 1) return;
-            
+
             const startCounts: Record<string, number> = {};
             const ranges: Array<{ start: string; end: string }> = [];
             indices.forEach((ix2) => {
