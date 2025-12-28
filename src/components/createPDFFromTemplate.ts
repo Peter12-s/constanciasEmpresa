@@ -86,33 +86,17 @@ async function fillPDFTemplate(
   signatureDataUrl?: string
 ): Promise<Uint8Array> {
   
-  // Cargar el template del PDF - probar múltiples rutas
-  let existingPdfBytes: ArrayBuffer;
-  const possibleUrls = [
-    '/SolicitudDC3.pdf',
-    './SolicitudDC3.pdf',
-    `${window.location.origin}/SolicitudDC3.pdf`,
-    `${window.location.protocol}//${window.location.host}/SolicitudDC3.pdf`
-  ];
+  // Cargar el template del PDF - usar ruta absoluta del dominio
+  const templateUrl = `${window.location.protocol}//${window.location.host}/SolicitudDC3.pdf`;
+  console.log('🔍 Intentando cargar PDF desde:', templateUrl);
   
-  let lastError: Error | null = null;
-  for (const url of possibleUrls) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) {
-        existingPdfBytes = await response.arrayBuffer();
-        console.log(`✅ Template cargado desde: ${url}`);
-        break;
-      }
-    } catch (err) {
-      lastError = err as Error;
-      console.warn(`❌ No se pudo cargar desde: ${url}`);
-    }
+  const response = await fetch(templateUrl);
+  if (!response.ok) {
+    throw new Error(`No se pudo cargar el template PDF. Status: ${response.status} - ${response.statusText}`);
   }
   
-  if (!existingPdfBytes!) {
-    throw new Error(`No se pudo cargar el template PDF. Último error: ${lastError?.message}`);
-  }
+  const existingPdfBytes = await response.arrayBuffer();
+  console.log('✅ Template PDF cargado correctamente');
   
   const pdfDoc = await PDFDocument.load(existingPdfBytes);
   const pages = pdfDoc.getPages();
