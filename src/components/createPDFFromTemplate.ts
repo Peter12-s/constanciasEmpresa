@@ -295,9 +295,9 @@ async function fillPDFTemplate(
       
       firstPage.drawImage(signImage, {
         x: 140,
-        y: height - 397,
-        width: 150,
-        height: 60
+        y:  397,
+        width: 300,
+        height: 120
       });
       console.log('✅ Firma digital del capacitador insertada');
     } catch (e) {
@@ -346,7 +346,10 @@ export async function generateAndDownloadZipDC3FromTemplate(
     })();
     
     // Generar QR
-    const qrUrl = `${baseUrl}/#/validar/${perCert.id}/${cursante.curp}`;
+    const courseId = perCert.course_id ?? '';
+    const qrUrl = courseId 
+      ? `${baseUrl}/#/validar/${perCert.id}/${cursante.curp}?course_id=${encodeURIComponent(String(courseId))}`
+      : `${baseUrl}/#/validar/${perCert.id}/${cursante.curp}`;
     const qrDataUrl = await generateQrDataUrl(qrUrl);
     
     // Obtener firma digital si existe
@@ -355,12 +358,18 @@ export async function generateAndDownloadZipDC3FromTemplate(
       const signId = (perCert as any).sign ?? undefined;
       const cursanteTipo = (cursante as any).tipo_firma as string | undefined;
       const certTipo = (perCert as any).tipo_firma as string | undefined;
+      const xlsxTipo = (perCert as any).xlsx_object?.tipo_firma as string | undefined;
       
-      if (signId && (cursanteTipo === 'DIGITAL' || certTipo === 'DIGITAL')) {
+      console.log('🔍 Firma debug:', { signId, cursanteTipo, certTipo, xlsxTipo });
+      
+      if (signId && (cursanteTipo === 'DIGITAL' || certTipo === 'DIGITAL' || xlsxTipo === 'DIGITAL')) {
+        console.log('✅ Condiciones cumplidas, cargando firma...');
         if (signatureCache.has(signId)) {
           signatureDataUrl = signatureCache.get(signId);
+          console.log('📦 Firma cargada desde cache');
         } else {
           const driveUrl = `${appConfig.BACKEND_URL}/google/proxy-drive?id=${encodeURIComponent(signId)}`;
+          console.log('🌐 Descargando firma desde:', driveUrl);
           const resp = await fetch(driveUrl);
           if (resp.ok) {
             const blob = await resp.blob();
@@ -370,11 +379,17 @@ export async function generateAndDownloadZipDC3FromTemplate(
               reader.onerror = reject;
               reader.readAsDataURL(blob);
             });
+            signatureCache.set(signId, signatureDataUrl);
+            console.log('✅ Firma descargada y cacheada');
+          } else {
+            console.warn('❌ Error al descargar firma, status:', resp.status);
           }
-          signatureCache.set(signId, signatureDataUrl);
         }
+      } else {
+        console.log('⚠️ Condiciones NO cumplidas para cargar firma');
       }
     } catch (e) {
+      console.error('❌ Error cargando firma:', e);
       signatureDataUrl = undefined;
     }
     

@@ -641,20 +641,20 @@ export function ConstanciasAdminPage() {
                 stack: [
                   { text: "Instructor", bold: true, alignment: "center" },
                   { text: (raw.trainer_fullname ?? "").toString().toUpperCase(), alignment: "center" },
-                  { text: "\n\n" },
+                  { text: "\n" },
                   ...(signatureDataUrl ? [
-                    { image: signatureDataUrl, width: 180, height: 75, alignment: "center", margin: [0, 12, 0, 6] },
+                    { image: signatureDataUrl, width: 300, height: 180, alignment: "center", margin: [0, 0, 0, 4] },
                   ] : [
-
+                    { text: "\n\n\n", margin: [0, 0, 0, 0] },
                   ]),
                   {
                       canvas: [
                         { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
                       ],
-                      margin: [0, 12, 0, 6],
+                      margin: [0, 4, 0, 4],
                       alignment: "center",
                     },
-                  { text: "Firma", margin: [0, 6, 0, 0], alignment: "center" },
+                  { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
                 ],
                 alignment: "center",
               },
@@ -667,15 +667,15 @@ export function ConstanciasAdminPage() {
                     alignment: "center",
                   },
                   { text: (raw.legal_representative ?? "").toString().toUpperCase(), alignment: "center" },
-                  { text: "\n\n" },
+                  { text: "\n\n\n\n" },
                   {
                     canvas: [
                       { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
                     ],
-                    margin: [0, 12, 0, 6],
+                    margin: [0, 4, 0, 4],
                     alignment: "center",
                   },
-                  { text: "Firma", margin: [0, 6, 0, 0], alignment: "center" },
+                  { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
                 ],
                 alignment: "center",
               },
