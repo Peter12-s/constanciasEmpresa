@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DC-3 Coordinate Finder</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      display: flex;
+      height: 100vh;
+    }
+    
+    #sidebar {
+      width: 350px;
+      background: #252526;
+      border-right: 1px solid #3e3e42;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    
+    #viewer {
+      flex: 1;
+      overflow: auto;
+      position: relative;
+      background: #2d2d30;
+    }
+    
+    #canvasContainer {
+      position: relative;
+      display: inline-block;
+      margin: 20px;
+      cursor: crosshair;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    
+    #pdfCanvas {
+      display: block;
+      background: white;
+    }
+    
+    #overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
+    
+    .marker {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: #f00;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      box-shadow: 0 0 4px rgba(0,0,0,0.5);
+    }
+    
+    h1 {
+      font-size: 18px;
+      margin-bottom: 20px;
+      color: #4ec9b0;
+    }
+    
+    h2 {
+      font-size: 14px;
+      margin: 20px 0 10px;
+      color: #dcdcaa;
+      border-bottom: 1px solid #3e3e42;
+      padding-bottom: 5px;
+    }
+    
+    .field-group {
+      background: #1e1e1e;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      border: 1px solid #3e3e42;
+    }
+    
+    .field-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    
+    .field-row label {
+      color: #9cdcfe;
+      font-weight: 500;
+    }
+    
+    .field-row input {
+      width: 80px;
+      background: #3c3c3c;
+      border: 1px solid #555;
+      color: #d4d4d4;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+    }
+    
+    .field-row input:focus {
+      outline: none;
+      border-color: #007acc;
+    }
+    
+    button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      background: #0e639c;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    
+    button:hover {
+      background: #1177bb;
+    }
+    
+    button.secondary {
+      background: #2d2d30;
+      border: 1px solid #3e3e42;
+    }
+    
+    button.secondary:hover {
+      background: #3e3e42;
+    }
+    
+    #coordDisplay {
+      background: #1e1e1e;
+      padding: 12px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      margin-bottom: 15px;
+      border: 1px solid #3e3e42;
+      color: #ce9178;
+    }
+    
+    #instructions {
+      font-size: 12px;
+      line-height: 1.6;
+      color: #858585;
+      margin-bottom: 20px;
+      padding: 10px;
+      background: #1e1e1e;
+      border-radius: 4px;
+      border-left: 3px solid #4ec9b0;
+    }
+    
+    .coord-list {
+      max-height: 200px;
+      overflow-y: auto;
+      background: #1e1e1e;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: 'Courier New', monospace;
+      margin-bottom: 10px;
+    }
+    
+    .coord-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid #3e3e42;
+    }
+    
+    .coord-item:last-child {
+      border-bottom: none;
+    }
+    
+    .delete-btn {
+      color: #f48771;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0 5px;
+    }
+    
+    .delete-btn:hover {
+      color: #ff6b6b;
+    }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <h1>🎯 DC-3 Coordinate Finder</h1>
+    
+    <div id="instructions">
+      <strong>Cómo usar:</strong><br>
+      1. Haz clic en el PDF para capturar coordenadas<br>
+      2. Ingresa el nombre del campo y tamaño de fuente<br>
+      3. Haz clic en "Agregar Campo"<br>
+      4. Repite para todos los campos<br>
+      5. Exporta las coordenadas al final
+    </div>
+    
+    <div id="coordDisplay">
+      Haz clic en el PDF...<br>
+      x: 0, y: 0
+    </div>
+    
+    <h2>➕ Agregar Campo</h2>
+    <div class="field-group">
+      <div class="field-row">
+        <label>Nombre:</label>
+        <input type="text" id="fieldName" placeholder="nombre">
+      </div>
+      <div class="field-row">
+        <label>X:</label>
+        <input type="number" id="fieldX" value="0">
+      </div>
+      <div class="field-row">
+        <label>Y:</label>
+        <input type="number" id="fieldY" value="0">
+      </div>
+      <div class="field-row">
+        <label>Tamaño:</label>
+        <input type="number" id="fieldSize" value="9" step="0.5">
+      </div>
+      <div class="field-row">
+        <label>Espaciado:</label>
+        <input type="number" id="fieldSpacing" value="0" step="0.5" placeholder="0">
+      </div>
+      <button onclick="addField()">Agregar Campo</button>
+    </div>
+    
+    <h2>📋 Campos Capturados</h2>
+    <div class="coord-list" id="fieldList">
+      <em style="color: #858585;">No hay campos aún...</em>
+    </div>
+    
+    <button onclick="testFill()" class="secondary">🧪 Probar Llenado</button>
+    <button onclick="exportCoords()">📤 Exportar Coordenadas</button>
+    <button onclick="clearAll()" class="secondary">🗑️ Limpiar Todo</button>
+  </div>
+  
+  <div id="viewer">
+    <div id="canvasContainer">
+      <canvas id="pdfCanvas"></canvas>
+      <canvas id="overlay"></canvas>
+    </div>
+  </div>
+
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    
+    let pdfDoc = null;
+    let pageHeight = 0;
+    let scale = 1.5;
+    let fields = [];
+    let markers = [];
+    
+    // Cargar el PDF
+    async function loadPDF() {
+      const url = './public/Solicitud de DC3-Formato DC3.pdf';
+      
+      try {
+        pdfDoc = await pdfjsLib.getDocument(url).promise;
+        const page = await pdfDoc.getPage(1);
+        
+        const viewport = page.getViewport({ scale });
+        pageHeight = viewport.height;
+        
+        const canvas = document.getElementById('pdfCanvas');
+        const overlay = document.getElementById('overlay');
+        const context = canvas.getContext('2d');
+        
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        overlay.width = viewport.width;
+        overlay.height = viewport.height;
+        
+        await page.render({ canvasContext: context, viewport }).promise;
+        
+        console.log('PDF cargado. Altura de página:', pageHeight / scale);
+      } catch (error) {
+        console.error('Error cargando PDF:', error);
+        alert('Error: No se pudo cargar el PDF. Asegúrate de que el archivo esté en public/');
+      }
+    }
+    
+    // Click en el canvas
+    document.getElementById('canvasContainer').addEventListener('click', (e) => {
+      const canvas = document.getElementById('pdfCanvas');
+      const rect = canvas.getBoundingClientRect();
+      
+      // Coordenadas del canvas (display)
+      const displayX = e.clientX - rect.left;
+      const displayY = e.clientY - rect.top;
+      
+      // Coordenadas reales del PDF (escala 1)
+      const x = Math.round(displayX / scale);
+      const y = Math.round((pageHeight - displayY) / scale); // Invertir Y
+      
+      document.getElementById('coordDisplay').innerHTML = `
+        Click capturado:<br>
+        x: ${x}, y: ${y}
+      `;
+      
+      document.getElementById('fieldX').value = x;
+      document.getElementById('fieldY').value = y;
+      
+      // Agregar marcador visual
+      addMarker(displayX, displayY);
+    });
+    
+    function addMarker(x, y) {
+      const marker = document.createElement('div');
+      marker.className = 'marker';
+      marker.style.left = x + 'px';
+      marker.style.top = y + 'px';
+      document.getElementById('canvasContainer').appendChild(marker);
+      markers.push(marker);
+    }
+    
+    function addField() {
+      const name = document.getElementById('fieldName').value.trim();
+      const x = parseInt(document.getElementById('fieldX').value);
+      const y = parseInt(document.getElementById('fieldY').value);
+      const size = parseFloat(document.getElementById('fieldSize').value);
+      const spacing = parseFloat(document.getElementById('fieldSpacing').value) || 0;
+      
+      if (!name) {
+        alert('Ingresa un nombre para el campo');
+        return;
+      }
+      
+      fields.push({ name, x, y, size, spacing });
+      updateFieldList();
+      
+      // Limpiar inputs
+      document.getElementById('fieldName').value = '';
+      document.getElementById('fieldName').focus();
+    }
+    
+    function updateFieldList() {
+      const list = document.getElementById('fieldList');
+      
+      if (fields.length === 0) {
+        list.innerHTML = '<em style="color: #858585;">No hay campos aún...</em>';
+        return;
+      }
+      
+      list.innerHTML = fields.map((f, i) => `
+        <div class="coord-item">
+          <span style="color: #4ec9b0;">${f.name}:</span>
+          <span style="color: #b5cea8;">x:${f.x} y:${f.y} size:${f.size}${f.spacing ? ` sp:${f.spacing}` : ''}</span>
+          <span class="delete-btn" onclick="deleteField(${i})">✕</span>
+        </div>
+      `).join('');
+    }
+    
+    function deleteField(index) {
+      fields.splice(index, 1);
+      updateFieldList();
+    }
+    
+    function clearAll() {
+      if (confirm('¿Limpiar todos los campos capturados?')) {
+        fields = [];
+        updateFieldList();
+        
+        // Limpiar marcadores
+        markers.forEach(m => m.remove());
+        markers = [];
+      }
+    }
+    
+    async function testFill() {
+      if (fields.length === 0) {
+        alert('Primero agrega algunos campos');
+        return;
+      }
+      
+      try {
+        const url = './public/Solicitud de DC3-Formato DC3.pdf';
+        const existingPdfBytes = await fetch(url).then(res => res.arrayBuffer());
+        
+        const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
+        const pages = pdfDoc.getPages();
+        const firstPage = pages[0];
+        const { height } = firstPage.getSize();
+        
+        const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+        
+        // Llenar cada campo con datos de prueba
+        fields.forEach(field => {
+          let text = field.name.toUpperCase();
+          
+          if (field.spacing > 0) {
+            // Campo con espaciado (como CURP o RFC)
+            const chars = text.padEnd(18, 'X').slice(0, 18).split('');
+            chars.forEach((char, i) => {
+              firstPage.drawText(char, {
+                x: field.x + (i * field.spacing),
+                y: height - field.y,
+                size: field.size,
+                font: font,
+                color: PDFLib.rgb(1, 0, 0) // Rojo para distinguir
+              });
+            });
+          } else {
+            // Campo normal
+            firstPage.drawText(text, {
+              x: field.x,
+              y: height - field.y,
+              size: field.size,
+              font: font,
+              color: PDFLib.rgb(1, 0, 0) // Rojo para distinguir
+            });
+          }
+        });
+        
+        const pdfBytes = await pdfDoc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const url2 = URL.createObjectURL(blob);
+        window.open(url2, '_blank');
+        
+      } catch (error) {
+        console.error('Error generando PDF de prueba:', error);
+        alert('Error al generar PDF de prueba: ' + error.message);
+      }
+    }
+    
+    function exportCoords() {
+      if (fields.length === 0) {
+        alert('No hay campos para exportar');
+        return;
+      }
+      
+      const coordsObj = {};
+      fields.forEach(f => {
+        if (f.spacing > 0) {
+          coordsObj[f.name] = { x: f.x, y: f.y, size: f.size, spacing: f.spacing };
+        } else {
+          coordsObj[f.name] = { x: f.x, y: f.y, size: f.size };
+        }
+      });
+      
+      const output = `const COORDS = ${JSON.stringify(coordsObj, null, 2)};`;
+      
+      // Copiar al portapapeles
+      navigator.clipboard.writeText(output).then(() => {
+        alert('✅ Coordenadas copiadas al portapapeles!\n\nPega esto en tu archivo createPDFFromTemplate.ts');
+      }).catch(() => {
+        // Fallback: mostrar en un prompt
+        prompt('Copia estas coordenadas:', output);
+      });
+      
+      console.log(output);
+    }
+    
+    // Cargar PDF al iniciar
+    loadPDF();
+  </script>
+</body>
+</html>

@@ -16,6 +16,7 @@ import { showNotification } from '@mantine/notifications';
 import { BasicPetition } from '../core/petition';
 import { ResponsiveDataTable, type Column } from "../components/ResponsiveDataTable";
 import { generateAndDownloadZipDC3, type DC3User, type DC3CertificateData } from '../components/createPDF';
+import { generateAndDownloadZipDC3FromTemplate } from '../components/createPDFFromTemplate';
 import { FaFileUpload, FaPlus } from "react-icons/fa";
 import pdfMake from "pdfmake/build/pdfmake";
 
@@ -822,7 +823,13 @@ export function ConstanciasEmpresaPage() {
                 }
             } catch (e) { /* ignore */ }
             showNotification({ title: 'Generando...', message: 'Generando ZIP con constancias.', color: 'blue', loading: true });
-            await generateAndDownloadZipDC3(certificateData, cursantes, 'logo.png', `constancias_${certificateData.id}.zip`);
+            
+            // Intentar usar template primero, si falla usar método tradicional
+            try {
+                await generateAndDownloadZipDC3FromTemplate(certificateData, cursantes, `constancias_${certificateData.id}.zip`);
+            } catch (templateError) {
+                console.warn('Template no disponible, usando método tradicional:', templateError);
+            }
         } catch (err: any) {
             try {
                 const serverData = err?.data ?? err?.originalError?.response?.data ?? err?.response?.data ?? null;
