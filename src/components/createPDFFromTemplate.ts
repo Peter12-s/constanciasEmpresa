@@ -36,7 +36,7 @@ const COORDS: Record<string, any> = {
   // DATOS DEL TRABAJADOR
   nombre: { x: 63, y: 153, size: 9 },
   curp: { x: 66, y: 174, size: 9, spacing: 18.3 }, // Para letras individuales
-  ocupacion: { x:396, y:174, xEnd:550, size: 9, centered: true },
+  ocupacion: { x:396, y:174, xEnd:550, size: 7, centered: true },
   puesto: { x:63, y:194, size: 9}, // Centrado automático
   
   // DATOS DE LA EMPRESA
@@ -49,15 +49,16 @@ const COORDS: Record<string, any> = {
   fechaInicio: { x: 251, y: 319,spacing: 18.3, size: 9 },
   fechaFin: { x: 415, y: 319,spacing: 18.3, size: 9 },
   area: { x:65, y:339, xEnd:545, size: 9, centered: true },
-  capacitador: { x: 63, y: 360, size: 9 },
+  capacitador: { x: 63, y: 360, size: 7 },
   regStps: { x: 266, y: 360, size: 9 },
   
   // FIRMAS
-  repLegal: { x:263, y:420, xEnd:386, size: 7, centered: true },
+  capacitadorFirma: { x: 79, y: 420, xEnd: 221, size: 7, centered: true }, // Nombre en la firma
+  repLegal: { x:261, y:420, xEnd:387, size: 7, centered: true },
   repTrab:  { x:412, y:420, xEnd:534, size: 7, centered: true },
   
   // QR
-  qr: { x: 525, y: 75, width: 80, height: 80 }
+  qr: { x: 525, y: 40, width: 60, height: 60 }
 };
 
 async function generateQrDataUrl(url: string): Promise<string> {
@@ -274,32 +275,35 @@ async function fillPDFTemplate(
   
   // Representantes
   if (certData.legal_representative) {
-    firstPage.drawText(safeText(certData.legal_representative), {
-      x: COORDS.repLegal.x,
-      y: height - COORDS.repLegal.y,
-      size: COORDS.repLegal.size,
-      font: font,
-      color: rgb(0, 0, 0)
-    });
+    drawField(safeText(certData.legal_representative), 'repLegal', font);
   }
   
   if (certData.workers_representative) {
-    firstPage.drawText(safeText(certData.workers_representative), {
-      x: COORDS.repTrab.x,
-      y: height - COORDS.repTrab.y,
-      size: COORDS.repTrab.size,
-      font: font,
-      color: rgb(0, 0, 0)
-    });
+    drawField(safeText(certData.workers_representative), 'repTrab', font);
   }
   
-  firstPage.drawText(certData.workers_representative.toUpperCase(), {
-    x: COORDS.repTrab.x,
-    y: height - COORDS.repTrab.y,
-    size: COORDS.repTrab.size,
-    font: font,
-    color: rgb(0, 0, 0)
-  });
+  // Nombre del capacitador en la firma (siempre)
+  if (certData.trainer_fullname) {
+    drawField(safeText(certData.trainer_fullname), 'capacitadorFirma', font);
+  }
+  
+  // Firma digital del capacitador (opcional, encima del nombre)
+  if (signatureDataUrl) {
+    try {
+      const signImageBytes = await fetch(signatureDataUrl).then(res => res.arrayBuffer());
+      const signImage = await pdfDoc.embedPng(signImageBytes);
+      
+      firstPage.drawImage(signImage, {
+        x: 140,
+        y: height - 397,
+        width: 150,
+        height: 60
+      });
+      console.log('✅ Firma digital del capacitador insertada');
+    } catch (e) {
+      console.warn('Error insertando firma digital:', e);
+    }
+  }
   
   // QR Code
   const qrImageBytes = await fetch(qrDataUrl).then(res => res.arrayBuffer());
@@ -311,22 +315,6 @@ async function fillPDFTemplate(
     width: COORDS.qr.width,
     height: COORDS.qr.height
   });
-  
-  // Firma digital si existe
-  if (signatureDataUrl) {
-    try {
-      const signImageBytes = await fetch(signatureDataUrl).then(res => res.arrayBuffer());
-      const signImage = await pdfDoc.embedPng(signImageBytes);
-      
-      firstPage.drawImage(signImage, {
-        x: 140,
-        y: 397,
-        width: 150,
-        height: 60
-      });
-    } catch (e) {
-    }
-  }
   
   return await pdfDoc.save();
 }
