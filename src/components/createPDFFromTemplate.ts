@@ -109,86 +109,106 @@ async function fillPDFTemplate(
   // Obtener dimensiones de la página
   const { height } = firstPage.getSize();
   
+  // Helper para texto seguro
+  const safeText = (text: any): string => (text || '').toString().toUpperCase();
+  
   // DATOS DEL TRABAJADOR
   // Nombre
-  firstPage.drawText(cursante.nombre.toUpperCase(), {
-    x: COORDS.nombre.x,
-    y: height - COORDS.nombre.y,
-    size: COORDS.nombre.size,
-    font: fontBold,
-    color: rgb(0, 0, 0)
-  });
-  
-  // CURP (letra por letra)
-  const curp = cursante.curp.toUpperCase().padEnd(18, ' ').slice(0, 18);
-  curp.split('').forEach((char, i) => {
-    firstPage.drawText(char, {
-      x: COORDS.curp.x + (i * COORDS.curp.spacing),
-      y: height - COORDS.curp.y,
-      size: COORDS.curp.size,
+  if (cursante.nombre) {
+    firstPage.drawText(safeText(cursante.nombre), {
+      x: COORDS.nombre.x,
+      y: height - COORDS.nombre.y,
+      size: COORDS.nombre.size,
       font: fontBold,
       color: rgb(0, 0, 0)
     });
-  });
+  }
+  
+  // CURP (letra por letra)
+  if (cursante.curp) {
+    const curp = safeText(cursante.curp).padEnd(18, ' ').slice(0, 18);
+    curp.split('').forEach((char, i) => {
+      firstPage.drawText(char, {
+        x: COORDS.curp.x + (i * COORDS.curp.spacing),
+        y: height - COORDS.curp.y,
+        size: COORDS.curp.size,
+        font: fontBold,
+        color: rgb(0, 0, 0)
+      });
+    });
+  }
   
   // Ocupación
-  firstPage.drawText(cursante.ocupacion_especifica.toUpperCase(), {
-    x: COORDS.ocupacion.x,
-    y: height - COORDS.ocupacion.y,
-    size: COORDS.ocupacion.size,
-    font: fontBold,
-    color: rgb(0, 0, 0)
-  });
+  if (cursante.ocupacion_especifica) {
+    firstPage.drawText(safeText(cursante.ocupacion_especifica), {
+      x: COORDS.ocupacion.x,
+      y: height - COORDS.ocupacion.y,
+      size: COORDS.ocupacion.size,
+      font: fontBold,
+      color: rgb(0, 0, 0)
+    });
+  }
   
   // Puesto
-  firstPage.drawText(cursante.puesto_trabajo.toUpperCase(), {
-    x: COORDS.puesto.x,
-    y: height - COORDS.puesto.y,
-    size: COORDS.puesto.size,
-    font: fontBold,
-    color: rgb(0, 0, 0)
-  });
+  if (cursante.puesto_trabajo) {
+    firstPage.drawText(safeText(cursante.puesto_trabajo), {
+      x: COORDS.puesto.x,
+      y: height - COORDS.puesto.y,
+      size: COORDS.puesto.size,
+      font: fontBold,
+      color: rgb(0, 0, 0)
+    });
+  }
   
   // DATOS DE LA EMPRESA
   // Razón social
-  firstPage.drawText(certData.company_name.toUpperCase(), {
-    x: COORDS.empresa.x,
-    y: height - COORDS.empresa.y,
-    size: COORDS.empresa.size,
-    font: fontBold,
-    color: rgb(0, 0, 0)
-  });
-  
-  // RFC (letra por letra)
-  const rfc = (certData.rfc || certData.company_rfc || '').toUpperCase().replace(/[^A-Z0-9]/g, '').padEnd(13, ' ').slice(0, 13);
-  rfc.split('').forEach((char, i) => {
-    firstPage.drawText(char, {
-      x: COORDS.rfc.x + (i * COORDS.rfc.spacing),
-      y: height - COORDS.rfc.y,
-      size: COORDS.rfc.size,
+  if (certData.company_name) {
+    firstPage.drawText(safeText(certData.company_name), {
+      x: COORDS.empresa.x,
+      y: height - COORDS.empresa.y,
+      size: COORDS.empresa.size,
       font: fontBold,
       color: rgb(0, 0, 0)
     });
-  });
+  }
+  
+  // RFC (letra por letra)
+  const rfcRaw = certData.rfc || certData.company_rfc || '';
+  if (rfcRaw) {
+    const rfc = safeText(rfcRaw).replace(/[^A-Z0-9]/g, '').padEnd(13, ' ').slice(0, 13);
+    rfc.split('').forEach((char, i) => {
+      firstPage.drawText(char, {
+        x: COORDS.rfc.x + (i * COORDS.rfc.spacing),
+        y: height - COORDS.rfc.y,
+        size: COORDS.rfc.size,
+        font: fontBold,
+        color: rgb(0, 0, 0)
+      });
+    });
+  }
   
   // DATOS DEL PROGRAMA
   // Nombre del curso
-  firstPage.drawText(certData.course_name.toUpperCase(), {
-    x: COORDS.curso.x,
-    y: height - COORDS.curso.y,
-    size: COORDS.curso.size,
-    font: fontBold,
-    color: rgb(0, 0, 0)
-  });
+  if (certData.course_name) {
+    firstPage.drawText(safeText(certData.course_name), {
+      x: COORDS.curso.x,
+      y: height - COORDS.curso.y,
+      size: COORDS.curso.size,
+      font: fontBold,
+      color: rgb(0, 0, 0)
+    });
+  }
   
   // Duración
-  firstPage.drawText(certData.course_duration.toString(), {
-    x: COORDS.duracion.x,
-    y: height - COORDS.duracion.y,
-    size: COORDS.duracion.size,
-    font: fontBold,
-    color: rgb(0, 0, 0)
-  });
+  if (certData.course_duration) {
+    firstPage.drawText(certData.course_duration.toString(), {
+      x: COORDS.duracion.x,
+      y: height - COORDS.duracion.y,
+      size: COORDS.duracion.size,
+      font: fontBold,
+      color: rgb(0, 0, 0)
+    });
+  }
   
   // Fechas
   const [inicioStr, finStr] = (certData.course_period || '').split(/\s*\/\s*/);
@@ -198,24 +218,28 @@ async function fillPDFTemplate(
   const fechaInicioText = `${fInicio.d.join('')}/${fInicio.m.join('')}/${fInicio.a.join('')}`;
   const fechaFinText = `${fFin.d.join('')}/${fFin.m.join('')}/${fFin.a.join('')}`;
   
-  firstPage.drawText(fechaInicioText, {
-    x: COORDS.fechaInicio.x,
-    y: height - COORDS.fechaInicio.y,
-    size: COORDS.fechaInicio.size,
-    font: fontBold,
-    color: rgb(0, 0, 0)
-  });
+  if (fechaInicioText && fechaInicioText !== '//') {
+    firstPage.drawText(fechaInicioText, {
+      x: COORDS.fechaInicio.x,
+      y: height - COORDS.fechaInicio.y,
+      size: COORDS.fechaInicio.size,
+      font: fontBold,
+      color: rgb(0, 0, 0)
+    });
+  }
   
-  firstPage.drawText(fechaFinText, {
-    x: COORDS.fechaFin.x,
-    y: height - COORDS.fechaFin.y,
-    size: COORDS.fechaFin.size,
-    font: fontBold,
-    color: rgb(0, 0, 0)
-  });
+  if (fechaFinText && fechaFinText !== '//') {
+    firstPage.drawText(fechaFinText, {
+      x: COORDS.fechaFin.x,
+      y: height - COORDS.fechaFin.y,
+      size: COORDS.fechaFin.size,
+      font: fontBold,
+      color: rgb(0, 0, 0)
+    });
+  }
   
   // Área temática
-  firstPage.drawText((certData.area_tematica || '6000 Seguridad').toUpperCase(), {
+  firstPage.drawText(safeText(certData.area_tematica || '6000 Seguridad'), {
     x: COORDS.area.x,
     y: height - COORDS.area.y,
     size: COORDS.area.size,
@@ -224,31 +248,47 @@ async function fillPDFTemplate(
   });
   
   // Capacitador
-  firstPage.drawText(certData.trainer_fullname.toUpperCase(), {
-    x: COORDS.capacitador.x,
-    y: height - COORDS.capacitador.y,
-    size: COORDS.capacitador.size,
-    font: fontBold,
-    color: rgb(0, 0, 0)
-  });
+  if (certData.trainer_fullname) {
+    firstPage.drawText(safeText(certData.trainer_fullname), {
+      x: COORDS.capacitador.x,
+      y: height - COORDS.capacitador.y,
+      size: COORDS.capacitador.size,
+      font: fontBold,
+      color: rgb(0, 0, 0)
+    });
+  }
   
   // REG STPS
-  firstPage.drawText(certData.stps.toUpperCase(), {
-    x: COORDS.regStps.x,
-    y: height - COORDS.regStps.y,
-    size: COORDS.regStps.size,
-    font: fontBold,
-    color: rgb(0, 0, 0)
-  });
+  if (certData.stps) {
+    firstPage.drawText(safeText(certData.stps), {
+      x: COORDS.regStps.x,
+      y: height - COORDS.regStps.y,
+      size: COORDS.regStps.size,
+      font: fontBold,
+      color: rgb(0, 0, 0)
+    });
+  }
   
   // Representantes
-  firstPage.drawText(certData.legal_representative.toUpperCase(), {
-    x: COORDS.repLegal.x,
-    y: height - COORDS.repLegal.y,
-    size: COORDS.repLegal.size,
-    font: font,
-    color: rgb(0, 0, 0)
-  });
+  if (certData.legal_representative) {
+    firstPage.drawText(safeText(certData.legal_representative), {
+      x: COORDS.repLegal.x,
+      y: height - COORDS.repLegal.y,
+      size: COORDS.repLegal.size,
+      font: font,
+      color: rgb(0, 0, 0)
+    });
+  }
+  
+  if (certData.workers_representative) {
+    firstPage.drawText(safeText(certData.workers_representative), {
+      x: COORDS.repTrab.x,
+      y: height - COORDS.repTrab.y,
+      size: COORDS.repTrab.size,
+      font: font,
+      color: rgb(0, 0, 0)
+    });
+  }
   
   firstPage.drawText(certData.workers_representative.toUpperCase(), {
     x: COORDS.repTrab.x,
