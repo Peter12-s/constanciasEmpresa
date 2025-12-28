@@ -60,6 +60,25 @@ export function Login() {
         }, login.user_type);
       }
     } catch (err: any) {
+      // Verificar si el error es específicamente de contraseña incorrecta
+      const errorMessage = err?.response?.data?.message || err?.message || '';
+      const statusCode = err?.response?.status || err?.statusCode || 0;
+      
+      // Mostrar "Contraseña incorrecta" solo si es error 401 (Unauthorized) o el mensaje lo indica
+      if (statusCode === 401 || errorMessage.toLowerCase().includes('password') || errorMessage.toLowerCase().includes('contraseña') || errorMessage.toLowerCase().includes('unauthorized')) {
+        showNotification({ 
+          title: 'Error', 
+          message: 'Contraseña incorrecta', 
+          color: 'red' 
+        });
+      } else {
+        // Para otros errores, mostrar el mensaje genérico o específico del servidor
+        showNotification({ 
+          title: 'Error', 
+          message: errorMessage || 'Error al iniciar sesión', 
+          color: 'red' 
+        });
+      }
       setLoading(false);
     }
   };
