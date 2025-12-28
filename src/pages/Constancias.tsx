@@ -831,6 +831,7 @@ export function ConstanciasAdminPage() {
         legal_representative: item.legal_representative ?? '',
         workers_representative: item.workers_representative ?? '',
         area_tematica: item.xlsx_object?.area_tematica ?? item.area_tematica ?? '6000 Seguridad',
+        course_id: item.course_id ?? item.course?._id ?? item.course?.id ?? undefined,
         // NO incluir tipo_firma en la raíz, solo debe estar en xlsx_object para evitar que el spread lo sobrescriba
         certificate_courses: item.certificate_courses ?? undefined,
         sign: item.sign ?? undefined,
@@ -847,26 +848,61 @@ export function ConstanciasAdminPage() {
       }
 
       const cursantes = rawCursantes.map((c: any) => {
-        // Intentar obtener el course_id del curso específico del cursante
+        // Intentar obtener el course_id y datos completos del curso específico del cursante
         let courseIdForCursante: string | undefined = undefined;
+        let courseNameForCursante: string | undefined = undefined;
+        let courseDurationForCursante: string | number | undefined = undefined;
+        let coursePeriodForCursante: string | undefined = undefined;
         
-        // Buscar en certificate_courses el curso que coincida con el curso del cursante
+        // Si hay certificate_courses disponibles
         if (Array.isArray(item.certificate_courses) && item.certificate_courses.length > 0) {
           const cursoInteres = c.curso_interes ?? c.cursoInteres ?? '';
+          
+          let matchedCourse;
           if (cursoInteres) {
-            const matchedCourse = item.certificate_courses.find((cc: any) => {
+            // Si el cursante tiene curso_interes, buscar el curso específico
+            matchedCourse = item.certificate_courses.find((cc: any) => {
               const ccName = cc?.course?.name ?? cc?.course_name ?? '';
               return ccName === cursoInteres;
             });
-            if (matchedCourse) {
-              courseIdForCursante = matchedCourse?.course?._id ?? matchedCourse?.course_id ?? matchedCourse?.course?.id ?? undefined;
+          } else if (item.certificate_courses.length === 1) {
+            // Si solo hay un curso, usarlo para todos los cursantes
+            matchedCourse = item.certificate_courses[0];
+          }
+          
+          if (matchedCourse) {
+            courseIdForCursante = matchedCourse?.course?._id ?? matchedCourse?.course_id ?? matchedCourse?.course?.id ?? undefined;
+            courseNameForCursante = matchedCourse?.course?.name ?? matchedCourse?.course_name ?? undefined;
+            courseDurationForCursante = matchedCourse?.course?.duration ?? matchedCourse?.duration ?? undefined;
+            
+            // Construir el periodo desde las fechas del certificate_course
+            const startDate = matchedCourse?.start ?? '';
+            const endDate = matchedCourse?.end ?? '';
+            if (startDate && endDate) {
+              coursePeriodForCursante = `${startDate} / ${endDate}`;
             }
           }
         }
         
-        // Si no se encontró, usar el course_id del certificado principal
+        // Si no se encontró, usar los datos del certificado principal
         if (!courseIdForCursante) {
           courseIdForCursante = item.course_id ?? item.course?._id ?? item.course?.id ?? undefined;
+        }
+        if (!courseNameForCursante) {
+          courseNameForCursante = item.course_name ?? item.course?.name ?? undefined;
+        }
+        if (!courseDurationForCursante) {
+          courseDurationForCursante = item.course_duration ?? item.course?.duration ?? undefined;
+        }
+        if (!coursePeriodForCursante) {
+          // Priorizar fechas del cursante individual
+          const cursanteStart = c.fecha_inicio ?? '';
+          const cursanteEnd = c.fecha_fin ?? '';
+          if (cursanteStart && cursanteEnd) {
+            coursePeriodForCursante = `${cursanteStart} / ${cursanteEnd}`;
+          } else {
+            coursePeriodForCursante = item.course_period ?? undefined;
+          }
         }
         
         return {
@@ -876,8 +912,9 @@ export function ConstanciasAdminPage() {
           ocupacion_especifica: c.ocupacion_especifica ?? c.ocupacionEspecifica ?? c.ocupacion ?? '',
           certificate_overrides: {
             trainer_fullname: c.capacitador ?? undefined,
-            course_name: c.curso_interes ?? c.cursoInteres ?? undefined,
-            course_period: `${c.fecha_inicio ?? ''} / ${c.fecha_fin ?? ''}`.trim(),
+            course_name: courseNameForCursante,
+            course_duration: courseDurationForCursante,
+            course_period: coursePeriodForCursante,
             legal_representative: c.rep_legal ?? undefined,
             workers_representative: c.rep_trabajadores ?? undefined,
             course_id: courseIdForCursante,

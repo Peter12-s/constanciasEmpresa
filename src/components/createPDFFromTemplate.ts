@@ -295,9 +295,9 @@ async function fillPDFTemplate(
       
       firstPage.drawImage(signImage, {
         x: 80,
-        y: height - 410,
-        width: 140,
-        height: 50
+        y: height - 380,
+        width: 220,
+        height: 150
       });
       console.log('✅ Firma digital del capacitador insertada');
     } catch (e) {
@@ -332,6 +332,25 @@ export async function generateAndDownloadZipDC3FromTemplate(
   for (const cursante of users) {
     const merged = { ...(certificateData ?? {}), ...(cursante.certificate_overrides ?? {}) } as any;
     const perCert: DC3CertificateData = merged as DC3CertificateData;
+    
+    console.log('🔍 DEBUG course_id:', {
+      certData_courseId: certificateData?.course_id,
+      overrides_courseId: cursante.certificate_overrides?.course_id,
+      perCert_courseId: perCert.course_id,
+      cursante_nombre: cursante.nombre
+    });
+    
+    console.log('📋 DEBUG datos del curso:', {
+      certData_courseName: certificateData?.course_name,
+      certData_courseDuration: certificateData?.course_duration,
+      certData_coursePeriod: certificateData?.course_period,
+      overrides_courseName: cursante.certificate_overrides?.course_name,
+      overrides_courseDuration: cursante.certificate_overrides?.course_duration,
+      overrides_coursePeriod: cursante.certificate_overrides?.course_period,
+      perCert_courseName: perCert.course_name,
+      perCert_courseDuration: perCert.course_duration,
+      perCert_coursePeriod: perCert.course_period
+    });
     
     // Obtener base URL para QR
     const baseUrl = (() => {
