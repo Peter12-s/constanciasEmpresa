@@ -626,12 +626,10 @@ export function ConstanciasAdminPage() {
               // Recortar espacios en blanco
               signatureDataUrl = await trimImageWhitespace(rawDataUrl);
               signatureCache.set(signId, signatureDataUrl);
-              console.log('✅ Firma cargada y recortada para lista');
             }
           
         }
       } catch (e) {
-        console.warn('Error cargando firma para lista:', e);
         signatureDataUrl = undefined;
       }
 
@@ -757,7 +755,8 @@ export function ConstanciasAdminPage() {
                     alignment: "center",
                   },
                   { text: (raw.legal_representative ?? "").toString().toUpperCase(), alignment: "center" },
-                  { text: "\n\n\n\n" },
+                  { text: "\n" },
+                  { text: "\n\n\n", margin: [0, 0, 0, 0] },
                   {
                     canvas: [
                       { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },

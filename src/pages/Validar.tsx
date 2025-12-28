@@ -62,12 +62,9 @@ export default function ValidarPage() {
 
         // Leer query param course_id usando useSearchParams (funciona con HashRouter)
         const courseIdFromUrl = searchParams.get('course_id');
-        console.log('🔍 course_id desde URL:', courseIdFromUrl);
         if (courseIdFromUrl) {
           setCourseIdParam(courseIdFromUrl);
-          console.log('✅ courseIdParam establecido:', courseIdFromUrl);
         } else {
-          console.log('⚠️ No se encontró course_id en URL params');
         }
 
         const cursantes = Array.isArray(item?.xlsx_object?.cursantes) ? item.xlsx_object.cursantes : [];
@@ -112,11 +109,8 @@ export default function ValidarPage() {
   // Buscar el curso específico en certificate_courses usando el course_id del QR
   let matched: any = null;
   try {
-    console.log('🔍 Buscando curso específico. courseIdParam:', courseIdParam);
-    console.log('📋 certificate_courses disponibles:', certificate?.certificate_courses);
     
     if (courseIdParam && Array.isArray(certificate?.certificate_courses)) {
-      console.log('✅ Entrando a búsqueda, total cursos:', certificate.certificate_courses.length);
       
       // Buscar por course._id (MongoDB ID) o course_id (ambos deberían funcionar)
       matched = (certificate.certificate_courses as any[]).find((it: any) => {
@@ -124,13 +118,6 @@ export default function ValidarPage() {
         const courseIdField = it.course_id ?? '';
         const courseIdAlt = it.course?.id ?? '';
         
-        console.log('🔎 Comparando:', { 
-          courseIdParam, 
-          courseMongoDB, 
-          courseIdField, 
-          courseIdAlt,
-          courseName: it.course?.name ?? it.course_name 
-        });
         
         return String(courseMongoDB) === String(courseIdParam) || 
                String(courseIdField) === String(courseIdParam) ||
@@ -138,7 +125,6 @@ export default function ValidarPage() {
       });
       
       if (matched) {
-        console.log('✅ Curso específico encontrado:', matched);
         curso = matched.course?.name ?? matched.course_name ?? matched.name ?? curso;
         duracion = matched.course?.duration ?? matched.duration ?? duracion;
         
@@ -151,18 +137,12 @@ export default function ValidarPage() {
         
         instructor = matched.trainer_fullname ?? matched.capacitador ?? certificate?.trainer_fullname ?? instructor;
         
-        console.log('📝 Datos finales del curso:', { curso, duracion, fecha, instructor });
       } else {
-        console.warn('❌ No se encontró curso específico con course_id:', courseIdParam);
       }
     } else {
-      console.log('⚠️ No se puede buscar:', { 
-        hasCourseIdParam: !!courseIdParam, 
-        isCertificateCoursesArray: Array.isArray(certificate?.certificate_courses) 
-      });
+     
     }
   } catch (e) {
-    console.error('❌ Error buscando curso específico:', e);
   }
   
 

@@ -44,11 +44,11 @@ const COORDS: Record<string, any> = {
   rfc: { x: 66, y: 256, size: 10, spacing: 18.3 }, // Para letras individuales
   
   // DATOS DEL PROGRAMA
-  curso: { x:65, y:295, xEnd:545, size: 9, centered: true },
+  curso: { x:65, y:299, xEnd:545, size: 9, centered: true },
   duracion:{ x:65, y:319, xEnd:183, size: 9, centered: true },
   fechaInicio: { x: 251, y: 319,spacing: 18.3, size: 9 },
   fechaFin: { x: 415, y: 319,spacing: 18.3, size: 9 },
-  area: { x:65, y:339, xEnd:545, size: 9, centered: true },
+  area: { x:65, y:339, xEnd:545, size: 7, centered: true },
   capacitador: { x: 63, y: 360, size: 7 },
   regStps: { x: 266, y: 360, size: 9 },
   
@@ -167,13 +167,7 @@ async function fillPDFTemplate(
   // DATOS DE LA EMPRESA
   // Razón social
   if (certData.company_name) {
-    firstPage.drawText(safeText(certData.company_name), {
-      x: COORDS.empresa.x,
-      y: height - COORDS.empresa.y,
-      size: COORDS.empresa.size,
-      font: fontBold,
-      color: rgb(0, 0, 0)
-    });
+    drawField(safeText(certData.company_name), 'empresa', fontBold);
   }
   
   // RFC (letra por letra)
@@ -194,62 +188,51 @@ async function fillPDFTemplate(
   // DATOS DEL PROGRAMA
   // Nombre del curso
   if (certData.course_name) {
-    firstPage.drawText(safeText(certData.course_name), {
-      x: COORDS.curso.x,
-      y: height - COORDS.curso.y,
-      size: COORDS.curso.size,
-      font: fontBold,
-      color: rgb(0, 0, 0)
-    });
+    drawField(safeText(certData.course_name), 'curso', fontBold);
   }
   
   // Duración
   if (certData.course_duration) {
-    firstPage.drawText(certData.course_duration.toString(), {
-      x: COORDS.duracion.x,
-      y: height - COORDS.duracion.y,
-      size: COORDS.duracion.size,
-      font: fontBold,
-      color: rgb(0, 0, 0)
-    });
+    drawField(certData.course_duration.toString(), 'duracion', fontBold);
   }
   
-  // Fechas
+  // Fechas - formato YYYYMMDD para espaciado individual
   const [inicioStr, finStr] = (certData.course_period || '').split(/\s*\/\s*/);
   const fInicio = splitDateParts(inicioStr);
   const fFin = splitDateParts(finStr);
   
-  const fechaInicioText = `${fInicio.d.join('')}/${fInicio.m.join('')}/${fInicio.a.join('')}`;
-  const fechaFinText = `${fFin.d.join('')}/${fFin.m.join('')}/${fFin.a.join('')}`;
+  // Formato: YYYYMMDD (sin separadores)
+  const fechaInicioText = `${fInicio.a.join('')}${fInicio.m.join('')}${fInicio.d.join('')}`;
+  const fechaFinText = `${fFin.a.join('')}${fFin.m.join('')}${fFin.d.join('')}`;
   
-  if (fechaInicioText && fechaInicioText !== '//') {
-    firstPage.drawText(fechaInicioText, {
-      x: COORDS.fechaInicio.x,
-      y: height - COORDS.fechaInicio.y,
-      size: COORDS.fechaInicio.size,
-      font: fontBold,
-      color: rgb(0, 0, 0)
+  // Fecha inicio (8 dígitos con espaciado)
+  if (fechaInicioText && fechaInicioText.length === 8 && fechaInicioText !== '00000000') {
+    fechaInicioText.split('').forEach((char, i) => {
+      firstPage.drawText(char, {
+        x: COORDS.fechaInicio.x + (i * COORDS.fechaInicio.spacing),
+        y: height - COORDS.fechaInicio.y,
+        size: COORDS.fechaInicio.size,
+        font: fontBold,
+        color: rgb(0, 0, 0)
+      });
     });
   }
   
-  if (fechaFinText && fechaFinText !== '//') {
-    firstPage.drawText(fechaFinText, {
-      x: COORDS.fechaFin.x,
-      y: height - COORDS.fechaFin.y,
-      size: COORDS.fechaFin.size,
-      font: fontBold,
-      color: rgb(0, 0, 0)
+  // Fecha fin (8 dígitos con espaciado)
+  if (fechaFinText && fechaFinText.length === 8 && fechaFinText !== '00000000') {
+    fechaFinText.split('').forEach((char, i) => {
+      firstPage.drawText(char, {
+        x: COORDS.fechaFin.x + (i * COORDS.fechaFin.spacing),
+        y: height - COORDS.fechaFin.y,
+        size: COORDS.fechaFin.size,
+        font: fontBold,
+        color: rgb(0, 0, 0)
+      });
     });
   }
   
   // Área temática
-  firstPage.drawText(safeText(certData.area_tematica || '6000 Seguridad'), {
-    x: COORDS.area.x,
-    y: height - COORDS.area.y,
-    size: COORDS.area.size,
-    font: fontBold,
-    color: rgb(0, 0, 0)
-  });
+  drawField(safeText(certData.area_tematica || '6000 Seguridad'), 'area', fontBold);
   
   // Capacitador
   if (certData.trainer_fullname) {
@@ -294,14 +277,12 @@ async function fillPDFTemplate(
       const signImage = await pdfDoc.embedPng(signImageBytes);
       
       firstPage.drawImage(signImage, {
-        x: 80,
-        y: height - 380,
+        x: 60,
+        y: height - 500,
         width: 220,
         height: 150
       });
-      console.log('✅ Firma digital del capacitador insertada');
     } catch (e) {
-      console.warn('Error insertando firma digital:', e);
     }
   }
   
@@ -333,24 +314,6 @@ export async function generateAndDownloadZipDC3FromTemplate(
     const merged = { ...(certificateData ?? {}), ...(cursante.certificate_overrides ?? {}) } as any;
     const perCert: DC3CertificateData = merged as DC3CertificateData;
     
-    console.log('🔍 DEBUG course_id:', {
-      certData_courseId: certificateData?.course_id,
-      overrides_courseId: cursante.certificate_overrides?.course_id,
-      perCert_courseId: perCert.course_id,
-      cursante_nombre: cursante.nombre
-    });
-    
-    console.log('📋 DEBUG datos del curso:', {
-      certData_courseName: certificateData?.course_name,
-      certData_courseDuration: certificateData?.course_duration,
-      certData_coursePeriod: certificateData?.course_period,
-      overrides_courseName: cursante.certificate_overrides?.course_name,
-      overrides_courseDuration: cursante.certificate_overrides?.course_duration,
-      overrides_coursePeriod: cursante.certificate_overrides?.course_period,
-      perCert_courseName: perCert.course_name,
-      perCert_courseDuration: perCert.course_duration,
-      perCert_coursePeriod: perCert.course_period
-    });
     
     // Obtener base URL para QR
     const baseUrl = (() => {
@@ -379,16 +342,12 @@ export async function generateAndDownloadZipDC3FromTemplate(
       const certTipo = (perCert as any).tipo_firma as string | undefined;
       const xlsxTipo = (perCert as any).xlsx_object?.tipo_firma as string | undefined;
       
-      console.log('🔍 Firma debug:', { signId, cursanteTipo, certTipo, xlsxTipo });
       
       if (signId && (cursanteTipo === 'DIGITAL' || certTipo === 'DIGITAL' || xlsxTipo === 'DIGITAL')) {
-        console.log('✅ Condiciones cumplidas, cargando firma...');
         if (signatureCache.has(signId)) {
           signatureDataUrl = signatureCache.get(signId);
-          console.log('📦 Firma cargada desde cache');
         } else {
           const driveUrl = `${appConfig.BACKEND_URL}/google/proxy-drive?id=${encodeURIComponent(signId)}`;
-          console.log('🌐 Descargando firma desde:', driveUrl);
           const resp = await fetch(driveUrl);
           if (resp.ok) {
             const blob = await resp.blob();
@@ -399,16 +358,12 @@ export async function generateAndDownloadZipDC3FromTemplate(
               reader.readAsDataURL(blob);
             });
             signatureCache.set(signId, signatureDataUrl);
-            console.log('✅ Firma descargada y cacheada');
           } else {
-            console.warn('❌ Error al descargar firma, status:', resp.status);
           }
         }
       } else {
-        console.log('⚠️ Condiciones NO cumplidas para cargar firma');
       }
     } catch (e) {
-      console.error('❌ Error cargando firma:', e);
       signatureDataUrl = undefined;
     }
     

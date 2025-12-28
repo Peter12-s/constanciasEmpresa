@@ -19,6 +19,10 @@ import { generateAndDownloadZipDC3, type DC3User, type DC3CertificateData } from
 import { generateAndDownloadZipDC3FromTemplate } from '../components/createPDFFromTemplate';
 import { FaFileUpload, FaPlus } from "react-icons/fa";
 import pdfMake from "pdfmake/build/pdfmake";
+import appConfig from '../core/constants/appConfig';
+
+// Cache de firmas global
+const signatureCache = new Map<string, string | undefined>();
 
 type Row = {
     id?: string;
@@ -507,6 +511,92 @@ export function ConstanciasEmpresaPage() {
         }
     }
 
+    // Función para recortar el espacio en blanco de una imagen
+    async function trimImageWhitespace(dataUrl: string): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    resolve(dataUrl);
+                    return;
+                }
+
+                // Dibujar imagen en canvas temporal
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+
+                // Obtener datos de píxeles
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const pixels = imageData.data;
+
+                // Encontrar límites del contenido (no blanco/transparente)
+                let minX = canvas.width;
+                let minY = canvas.height;
+                let maxX = 0;
+                let maxY = 0;
+
+                for (let y = 0; y < canvas.height; y++) {
+                    for (let x = 0; x < canvas.width; x++) {
+                        const i = (y * canvas.width + x) * 4;
+                        const r = pixels[i];
+                        const g = pixels[i + 1];
+                        const b = pixels[i + 2];
+                        const a = pixels[i + 3];
+
+                        // Si no es blanco (rgb > 240) ni transparente (a < 10)
+                        if (!(r > 240 && g > 240 && b > 240) && a > 10) {
+                            if (x < minX) minX = x;
+                            if (x > maxX) maxX = x;
+                            if (y < minY) minY = y;
+                            if (y > maxY) maxY = y;
+                        }
+                    }
+                }
+
+                // Si no encontró contenido, devolver original
+                if (minX > maxX || minY > maxY) {
+                    resolve(dataUrl);
+                    return;
+                }
+
+                // Añadir un pequeño padding
+                const padding = 25;
+                minX = Math.max(0, minX - padding);
+                minY = Math.max(0, minY - padding);
+                maxX = Math.min(canvas.width - 1, maxX + padding);
+                maxY = Math.min(canvas.height - 1, maxY + padding);
+
+                // Crear canvas recortado
+                const trimmedWidth = maxX - minX + 1;
+                const trimmedHeight = maxY - minY + 1;
+                const trimmedCanvas = document.createElement('canvas');
+                trimmedCanvas.width = trimmedWidth;
+                trimmedCanvas.height = trimmedHeight;
+                const trimmedCtx = trimmedCanvas.getContext('2d');
+
+                if (!trimmedCtx) {
+                    resolve(dataUrl);
+                    return;
+                }
+
+                // Copiar región recortada
+                trimmedCtx.drawImage(
+                    canvas,
+                    minX, minY, trimmedWidth, trimmedHeight,
+                    0, 0, trimmedWidth, trimmedHeight
+                );
+
+                // Convertir a dataUrl
+                resolve(trimmedCanvas.toDataURL('image/png'));
+            };
+            img.onerror = () => resolve(dataUrl);
+            img.src = dataUrl;
+        });
+    }
+
     const generateLista = async (row: Row) => {
         if (!row.id) return;
         try {
@@ -564,6 +654,34 @@ export function ConstanciasEmpresaPage() {
             }
 
             const logoDataUrl = await imageUrlToDataUrl("logo.png");
+
+            // Cargar firma digital si aplica
+            let signatureDataUrl: string | undefined = undefined;
+            try {
+                const signId = raw?.sign ?? raw?.trainer?.sign ?? undefined;
+                if (signId) {
+                    if (signatureCache.has(signId)) {
+                        signatureDataUrl = signatureCache.get(signId);
+                    } else {
+                        const driveUrl = `${appConfig.BACKEND_URL}/google/proxy-drive?id=${encodeURIComponent(signId)}`;
+                        const resp = await fetch(driveUrl);
+                        if (resp.ok) {
+                            const blob = await resp.blob();
+                            const rawDataUrl = await new Promise<string>((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onloadend = () => resolve(String(reader.result));
+                                reader.onerror = reject;
+                                reader.readAsDataURL(blob);
+                            });
+                            // Recortar espacios en blanco
+                            signatureDataUrl = await trimImageWhitespace(rawDataUrl);
+                            signatureCache.set(signId, signatureDataUrl);
+                        }
+                    }
+                }
+            } catch (e) {
+                signatureDataUrl = undefined;
+            }
 
             // Generar una página por cada curso
             const pages: any[] = [];
@@ -661,15 +779,20 @@ export function ConstanciasEmpresaPage() {
                                 stack: [
                                     { text: "Instructor", bold: true, alignment: "center" },
                                     { text: (raw.trainer_fullname ?? "").toString().toUpperCase(), alignment: "center" },
-                                    { text: "\n\n" },
+                                    { text: "\n" },
+                                    ...(signatureDataUrl ? [
+                                        { image: signatureDataUrl, width: 150, height: 60, alignment: "center", margin: [0, 0, 0, 4] },
+                                    ] : [
+                                        { text: "\n\n\n", margin: [0, 0, 0, 0] },
+                                    ]),
                                     {
                                         canvas: [
                                             { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
                                         ],
-                                        margin: [0, 12, 0, 6],
+                                        margin: [0, 4, 0, 4],
                                         alignment: "center",
                                     },
-                                    { text: "Firma", margin: [0, 6, 0, 0], alignment: "center" },
+                                    { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
                                 ],
                                 alignment: "center",
                             },
@@ -682,15 +805,16 @@ export function ConstanciasEmpresaPage() {
                                         alignment: "center",
                                     },
                                     { text: (raw.legal_representative ?? "").toString().toUpperCase(), alignment: "center" },
-                                    { text: "\n\n" },
+                                    { text: "\n" },
+                                    { text: "\n\n\n", margin: [0, 0, 0, 0] },
                                     {
                                         canvas: [
                                             { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
                                         ],
-                                        margin: [0, 12, 0, 6],
+                                        margin: [0, 4, 0, 4],
                                         alignment: "center",
                                     },
-                                    { text: "Firma", margin: [0, 6, 0, 0], alignment: "center" },
+                                    { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
                                 ],
                                 alignment: "center",
                             },
