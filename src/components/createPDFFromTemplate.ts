@@ -277,8 +277,8 @@ async function fillPDFTemplate(
       const signImage = await pdfDoc.embedPng(signImageBytes);
       
       firstPage.drawImage(signImage, {
-        x: 60,
-        y: height - 500,
+        x: 55,
+        y: height - 480,
         width: 220,
         height: 150
       });
