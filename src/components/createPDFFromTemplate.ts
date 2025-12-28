@@ -380,7 +380,8 @@ export async function generateAndDownloadZipDC3FromTemplate(
     }
     
     const baseName = sanitizeFileName(cursante.nombre || '') || 'constancia';
-    const fileName = `${baseName}_${cursante.curp}.pdf`;
+    const courseName = sanitizeFileName(perCert.course_name || '') || 'curso';
+    const fileName = `${baseName}_${courseName}_${cursante.curp}.pdf`;
     
     zip.file(fileName, pdfBytes);
   }

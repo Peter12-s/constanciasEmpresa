@@ -846,80 +846,97 @@ export function ConstanciasAdminPage() {
         return;
       }
 
-      const cursantes = rawCursantes.map((c: any) => {
-        // Intentar obtener el course_id y datos completos del curso específico del cursante
-        let courseIdForCursante: string | undefined = undefined;
-        let courseNameForCursante: string | undefined = undefined;
-        let courseDurationForCursante: string | number | undefined = undefined;
-        let coursePeriodForCursante: string | undefined = undefined;
-        
-        // Si hay certificate_courses disponibles
+      const cursantes: Array<DC3User & { certificate_overrides?: Partial<DC3CertificateData> }> = [];
+      
+      rawCursantes.forEach((c: any) => {
+        // Si hay certificate_courses disponibles y hay más de uno, generar un PDF por cada curso
         if (Array.isArray(item.certificate_courses) && item.certificate_courses.length > 0) {
           const cursoInteres = c.curso_interes ?? c.cursoInteres ?? '';
           
-          let matchedCourse;
+          // Si el cursante tiene curso_interes específico, solo generar para ese curso
           if (cursoInteres) {
-            // Si el cursante tiene curso_interes, buscar el curso específico
-            matchedCourse = item.certificate_courses.find((cc: any) => {
+            const matchedCourse = item.certificate_courses.find((cc: any) => {
               const ccName = cc?.course?.name ?? cc?.course_name ?? '';
               return ccName === cursoInteres;
             });
-          } else if (item.certificate_courses.length === 1) {
-            // Si solo hay un curso, usarlo para todos los cursantes
-            matchedCourse = item.certificate_courses[0];
-          }
-          
-          if (matchedCourse) {
-            courseIdForCursante = matchedCourse?.course?._id ?? matchedCourse?.course_id ?? matchedCourse?.course?.id ?? undefined;
-            courseNameForCursante = matchedCourse?.course?.name ?? matchedCourse?.course_name ?? undefined;
-            courseDurationForCursante = matchedCourse?.course?.duration ?? matchedCourse?.duration ?? undefined;
             
-            // Construir el periodo desde las fechas del certificate_course
-            const startDate = matchedCourse?.start ?? '';
-            const endDate = matchedCourse?.end ?? '';
-            if (startDate && endDate) {
-              coursePeriodForCursante = `${startDate} / ${endDate}`;
+            if (matchedCourse) {
+              const courseIdForCursante = matchedCourse?.course?._id ?? matchedCourse?.course_id ?? matchedCourse?.course?.id ?? undefined;
+              const courseNameForCursante = matchedCourse?.course?.name ?? matchedCourse?.course_name ?? undefined;
+              const courseDurationForCursante = matchedCourse?.course?.duration ?? matchedCourse?.duration ?? undefined;
+              const startDate = matchedCourse?.start ?? '';
+              const endDate = matchedCourse?.end ?? '';
+              const coursePeriodForCursante = (startDate && endDate) ? `${startDate} / ${endDate}` : undefined;
+              
+              cursantes.push({
+                nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '',
+                curp: c.curp ?? '',
+                puesto_trabajo: c.puesto_trabajo ?? c.puestoTrabajo ?? c.puesto ?? '',
+                ocupacion_especifica: c.ocupacion_especifica ?? c.ocupacionEspecifica ?? c.ocupacion ?? '',
+                certificate_overrides: {
+                  trainer_fullname: c.capacitador ?? undefined,
+                  course_name: courseNameForCursante,
+                  course_duration: courseDurationForCursante,
+                  course_period: coursePeriodForCursante,
+                  legal_representative: c.rep_legal ?? undefined,
+                  workers_representative: c.rep_trabajadores ?? undefined,
+                  course_id: courseIdForCursante,
+                },
+              });
             }
+          } else {
+            // Si no tiene curso_interes, generar un PDF por cada curso disponible
+            item.certificate_courses.forEach((matchedCourse: any) => {
+              const courseIdForCursante = matchedCourse?.course?._id ?? matchedCourse?.course_id ?? matchedCourse?.course?.id ?? undefined;
+              const courseNameForCursante = matchedCourse?.course?.name ?? matchedCourse?.course_name ?? undefined;
+              const courseDurationForCursante = matchedCourse?.course?.duration ?? matchedCourse?.duration ?? undefined;
+              const startDate = matchedCourse?.start ?? '';
+              const endDate = matchedCourse?.end ?? '';
+              const coursePeriodForCursante = (startDate && endDate) ? `${startDate} / ${endDate}` : undefined;
+              
+              cursantes.push({
+                nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '',
+                curp: c.curp ?? '',
+                puesto_trabajo: c.puesto_trabajo ?? c.puestoTrabajo ?? c.puesto ?? '',
+                ocupacion_especifica: c.ocupacion_especifica ?? c.ocupacionEspecifica ?? c.ocupacion ?? '',
+                certificate_overrides: {
+                  trainer_fullname: c.capacitador ?? undefined,
+                  course_name: courseNameForCursante,
+                  course_duration: courseDurationForCursante,
+                  course_period: coursePeriodForCursante,
+                  legal_representative: c.rep_legal ?? undefined,
+                  workers_representative: c.rep_trabajadores ?? undefined,
+                  course_id: courseIdForCursante,
+                },
+              });
+            });
           }
-        }
-        
-        // Si no se encontró, usar los datos del certificado principal
-        if (!courseIdForCursante) {
-          courseIdForCursante = item.course_id ?? item.course?._id ?? item.course?.id ?? undefined;
-        }
-        if (!courseNameForCursante) {
-          courseNameForCursante = item.course_name ?? item.course?.name ?? undefined;
-        }
-        if (!courseDurationForCursante) {
-          courseDurationForCursante = item.course_duration ?? item.course?.duration ?? undefined;
-        }
-        if (!coursePeriodForCursante) {
-          // Priorizar fechas del cursante individual
+        } else {
+          // Sin certificate_courses, usar datos del certificado principal
+          const courseIdForCursante = item.course_id ?? item.course?._id ?? item.course?.id ?? undefined;
+          const courseNameForCursante = item.course_name ?? item.course?.name ?? undefined;
+          const courseDurationForCursante = item.course_duration ?? item.course?.duration ?? undefined;
           const cursanteStart = c.fecha_inicio ?? '';
           const cursanteEnd = c.fecha_fin ?? '';
-          if (cursanteStart && cursanteEnd) {
-            coursePeriodForCursante = `${cursanteStart} / ${cursanteEnd}`;
-          } else {
-            coursePeriodForCursante = item.course_period ?? undefined;
-          }
+          const coursePeriodForCursante = (cursanteStart && cursanteEnd) ? `${cursanteStart} / ${cursanteEnd}` : item.course_period ?? undefined;
+          
+          cursantes.push({
+            nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '',
+            curp: c.curp ?? '',
+            puesto_trabajo: c.puesto_trabajo ?? c.puestoTrabajo ?? c.puesto ?? '',
+            ocupacion_especifica: c.ocupacion_especifica ?? c.ocupacionEspecifica ?? c.ocupacion ?? '',
+            certificate_overrides: {
+              trainer_fullname: c.capacitador ?? undefined,
+              course_name: courseNameForCursante,
+              course_duration: courseDurationForCursante,
+              course_period: coursePeriodForCursante,
+              legal_representative: c.rep_legal ?? undefined,
+              workers_representative: c.rep_trabajadores ?? undefined,
+              course_id: courseIdForCursante,
+            },
+          });
         }
-        
-        return {
-          nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '',
-          curp: c.curp ?? '',
-          puesto_trabajo: c.puesto_trabajo ?? c.puestoTrabajo ?? c.puesto ?? '',
-          ocupacion_especifica: c.ocupacion_especifica ?? c.ocupacionEspecifica ?? c.ocupacion ?? '',
-          certificate_overrides: {
-            trainer_fullname: c.capacitador ?? undefined,
-            course_name: courseNameForCursante,
-            course_duration: courseDurationForCursante,
-            course_period: coursePeriodForCursante,
-            legal_representative: c.rep_legal ?? undefined,
-            workers_representative: c.rep_trabajadores ?? undefined,
-            course_id: courseIdForCursante,
-          },
-        };
-      }) as Array<DC3User & { certificate_overrides?: Partial<DC3CertificateData> }>;
+      });
 
       // Garantizar que los campos de firma y capacitador estén presentes
       try {
