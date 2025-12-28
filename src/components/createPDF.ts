@@ -244,23 +244,43 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
 
   return [
     {
-      columns: [
-        { 
-          width: 180, 
-          stack: logoDataUrl ? [{ image: logoDataUrl, fit: [170, 65], margin: [0, 5, 0, 0] }] : [] 
-        },
-        {
-          width: '*',
-          stack: [
-            { text: 'FORMATO DC-3', bold: true, fontSize: 11, alignment: 'center', margin: [0, 10, 0, 2] },
-            { text: 'CONSTANCIA DE COMPETENCIAS O DE HABILIDADES LABORALES', bold: true, fontSize: 11, alignment: 'center', margin: [0, 0, 0, 0] },
+      style: 'headerTable',
+      table: {
+        widths: [70, 380, 70],
+        body: [
+          [
+            {
+              stack: logoDataUrl ? [{ image: logoDataUrl, width: 120 }] : [], alignment: 'left'
+            },
+            {
+              width: 'auto',
+              stack: [
+                {
+                  text: 'FORMATO DC-3',
+                  bold: true,
+                  fontSize: 12,
+                  alignment: 'center',
+                  margin: [0, 35, 0, 1]
+                },
+                {
+                  text: 'CONSTANCIA DE COMPETENCIAS O DE HABILIDADES LABORALES',
+                  bold: true,
+                  fontSize: 12,
+                  alignment: 'center',
+                  margin: [0, 0, 0, 0],
+                  lineHeight: 1.1
+                }
+              ]
+            },
+            {
+              image: qrDataUrl,
+              fit: [90, 90],
+              alignment: 'right'
+            }
           ]
-        },
-        { 
-          width: 75, 
-          stack: [{ image: qrDataUrl, fit: [70, 70], alignment: 'right', margin: [0, 5, 0, 0] }] 
-        }
-      ],
+        ]
+      },
+      layout: 'noBorders',
       margin: [0, 0, 0, 8]
     },
     sectionHeader('DATOS DEL TRABAJADOR'),
@@ -325,79 +345,89 @@ function buildPageContent(cursante: DC3User, raw: DC3CertificateData, logoDataUr
     {
       table: {
         widths: ['*', '*', '*'],
-        body: [[
-          {
-            text: 'Los datos se asientan en esta constancia bajo protesta de decir verdad, apercibidos de la responsabilidad en que incurre todo aquel que no se conduce con verdad.', fontSize: 7, italics: true, alignment: 'center', margin: [0, 5, 0, 25] 
-          },
-          {
-            stack: [
-              {
-                table: {
-                  widths: ['*'],
-                  heights: [SIGNATURE_HEIGHT],
-                  body: [[
-                    signatureDataUrl
-                      ? {
-                        image: signatureDataUrl,
-                        fit: SIGNATURE_FIT,
-                        alignment: 'center',
-                      }
-                      : { text: '' },
-                  ]],
+        body: [
+          [
+            {
+              text: 'Los datos se asientan en esta constancia bajo protesta de decir verdad, apercibidos de la responsabilidad en que incurre todo aquel que no se conduce con verdad.',
+              fontSize: 6.5,
+              italics: true,
+              alignment: 'center',
+              colSpan: 3,
+              margin: [5, 5, 5, 8]
+            },
+            {},
+            {}
+          ],
+          [
+            {
+              stack: [
+                {
+                  table: {
+                    widths: ['*'],
+                    heights: [SIGNATURE_HEIGHT],
+                    body: [[
+                      signatureDataUrl
+                        ? {
+                          image: signatureDataUrl,
+                          fit: SIGNATURE_FIT,
+                          alignment: 'center',
+                        }
+                        : { text: '' },
+                    ]],
+                  },
+                  layout: 'noBorders',
+                  margin: [0, 5, 0, 5],
                 },
-                layout: 'noBorders',
-                margin: [0, 5, 0, 5],
-              },
-              { text: 'Capacitador', fontSize: 7.5, alignment: 'center', bold: true, margin: [0, 0, 0, 5] },
-              { text: instructor, fontSize: 6.5, alignment: 'center', bold: true, margin: [0, 0, 0, 2] },
-              {
-                canvas: [
-                  { type: 'line', x1: 10, y1: 0, x2: 150, y2: 0, lineWidth: 0.5 },
-                ],
-                alignment: 'center',
-                margin: [0, 0, 0, 3],
-              },
-              { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' },
-            ],
-            margin: [5, 5, 5, 5],
-          },
-          {
-            stack: [
-              {
-                table: {
-                  widths: ['*'],
-                  body: [[{ text: '' }]],
-                  heights: [SIGNATURE_HEIGHT]
+                { text: 'Capacitador', fontSize: 7.5, alignment: 'center', bold: true, margin: [0, 0, 0, 5] },
+                { text: instructor, fontSize: 6.5, alignment: 'center', bold: true, margin: [0, 0, 0, 2] },
+                {
+                  canvas: [
+                    { type: 'line', x1: 10, y1: 0, x2: 150, y2: 0, lineWidth: 0.5 },
+                  ],
+                  alignment: 'center',
+                  margin: [0, 0, 0, 3],
                 },
-                layout: { defaultBorder: false },
-                margin: [0, 5, 0, 5]
-              },
-              { text: 'Por la empresa', fontSize: 7.5, alignment: 'center', bold: true, margin: [0, 0, 0, 5] },
-              { text: repLegal, fontSize: 6.5, alignment: 'center', bold: true, margin: [0, 0, 0, 2] },
-              { canvas: [{ type: 'line', x1: 10, y1: 0, x2: 140, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 0, 0, 3] },
-              { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' }
-            ],
-            margin: [5, 5, 5, 5],
-          },
-          {
-            stack: [
-              {
-                table: {
-                  widths: ['*'],
-                  body: [[{ text: '' }]],
-                  heights: [SIGNATURE_HEIGHT]
+                { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' },
+              ],
+              margin: [5, 5, 5, 5],
+            },
+            {
+              stack: [
+                {
+                  table: {
+                    widths: ['*'],
+                    body: [[{ text: '' }]],
+                    heights: [SIGNATURE_HEIGHT]
+                  },
+                  layout: { defaultBorder: false },
+                  margin: [0, 5, 0, 5]
                 },
-                layout: { defaultBorder: false },
-                margin: [0, 5, 0, 5]
-              },
-              { text: 'Por los trabajadores', fontSize: 7.5, alignment: 'center', bold: true, margin: [0, 0, 0, 5] },
-              { text: repTrab, fontSize: 6.5, alignment: 'center', bold: true, margin: [0, 0, 0, 2] },
-              { canvas: [{ type: 'line', x1: 10, y1: 0, x2: 140, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 0, 0, 3] },
-              { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' }
-            ],
-            margin: [5, 5, 5, 5],
-          }
-        ]],
+                { text: 'Por la empresa', fontSize: 7.5, alignment: 'center', bold: true, margin: [0, 0, 0, 5] },
+                { text: repLegal, fontSize: 6.5, alignment: 'center', bold: true, margin: [0, 0, 0, 2] },
+                { canvas: [{ type: 'line', x1: 10, y1: 0, x2: 140, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 0, 0, 3] },
+                { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' }
+              ],
+              margin: [5, 5, 5, 5],
+            },
+            {
+              stack: [
+                {
+                  table: {
+                    widths: ['*'],
+                    body: [[{ text: '' }]],
+                    heights: [SIGNATURE_HEIGHT]
+                  },
+                  layout: { defaultBorder: false },
+                  margin: [0, 5, 0, 5]
+                },
+                { text: 'Por los trabajadores', fontSize: 7.5, alignment: 'center', bold: true, margin: [0, 0, 0, 5] },
+                { text: repTrab, fontSize: 6.5, alignment: 'center', bold: true, margin: [0, 0, 0, 2] },
+                { canvas: [{ type: 'line', x1: 10, y1: 0, x2: 140, y2: 0, lineWidth: 0.5 }], alignment: 'center', margin: [0, 0, 0, 3] },
+                { text: 'Nombre y firma', fontSize: 5.5, alignment: 'center' }
+              ],
+              margin: [5, 5, 5, 5],
+            }
+          ]],
       },
       layout: {
         hLineWidth: (i: number, node: any) => {
@@ -535,7 +565,7 @@ const generateSinglePdfBlob = (docDefinition: any): Promise<Blob> => {
 export async function generateAndDownloadZipDC3(
   certificateData: DC3CertificateData,
   users: Array<DC3User & { certificate_overrides?: Partial<DC3CertificateData> }>,
-  logoUrl: string = "logo.png",
+  logoUrl: string = "logoG.png",
   zipFileName: string = "constancias.zip"
 ) {
   const zip = new JSZip();
@@ -750,20 +780,20 @@ export async function generateAndDownloadZipDC3(
                 [cell('1.1', false, true), cell('Agricultura y silvicultura')],
                 [cell('1.2', false, true), cell('Ganadería')],
                 [cell('1.3', false, true), cell('Pesca y acuacultura')],
-                [cell(''), cell('')],   [cell(''), cell('')],
+                [cell(''), cell('')], [cell(''), cell('')],
                 [cell('2', true, true), cell('Extracción y suministro')],
                 [cell('2.1', false, true), cell('Exploración')],
                 [cell('2.2', false, true), cell('Extracción')],
                 [cell('2.3', false, true), cell('Refinación y beneficio')],
                 [cell('2.4', false, true), cell('Provisión de energía')],
                 [cell('2.5', false, true), cell('Provisión de agua')],
-                [cell(''), cell('')],   [cell(''), cell('')],
+                [cell(''), cell('')], [cell(''), cell('')],
                 [cell('3', true, true), cell('Construcción')],
                 [cell('3.1', false, true), cell('Planeación y dirección de obras')],
                 [cell('3.2', false, true), cell('Edificación y urbanización')],
                 [cell('3.3', false, true), cell('Acabado')],
                 [cell('3.4', false, true), cell('Instalación y mantenimiento')],
-                [cell(''), cell('')],   [cell(''), cell('')],
+                [cell(''), cell('')], [cell(''), cell('')],
                 [cell('4', true, true), cell('Tecnología')],
                 [cell('4.1', false, true), cell('Mecánica')],
                 [cell('4.2', false, true), cell('Electricidad')],
@@ -771,7 +801,7 @@ export async function generateAndDownloadZipDC3(
                 [cell('4.4', false, true), cell('Informática')],
                 [cell('4.5', false, true), cell('Telecomunicaciones')],
                 [cell('4.6', false, true), cell('Procesos industriales')],
-                [cell(''), cell('')],   [cell(''), cell('')],
+                [cell(''), cell('')], [cell(''), cell('')],
                 [cell('5', true, true), cell('Procesamiento y fabricación')],
                 [cell('5.1', false, true), cell('Minerales no metálicos')],
                 [cell('5.2', false, true), cell('Metales')],
