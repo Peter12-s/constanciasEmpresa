@@ -58,7 +58,7 @@ const COORDS: Record<string, any> = {
   repTrab:  { x:412, y:420, xEnd:534, size: 7, centered: true },
   
   // QR
-  qr: { x: 525, y: 40, width: 60, height: 60 }
+  qr: { x: 500, y: 40, width: 60, height: 60 }
 };
 
 async function generateQrDataUrl(url: string): Promise<string> {
@@ -294,10 +294,10 @@ async function fillPDFTemplate(
       const signImage = await pdfDoc.embedPng(signImageBytes);
       
       firstPage.drawImage(signImage, {
-        x: 140,
-        y:  397,
-        width: 300,
-        height: 120
+        x: 80,
+        y: height - 410,
+        width: 140,
+        height: 50
       });
       console.log('✅ Firma digital del capacitador insertada');
     } catch (e) {

@@ -471,6 +471,92 @@ export function ConstanciasAdminPage() {
     }
   }
 
+  // Función para recortar el espacio en blanco de una imagen
+  async function trimImageWhitespace(dataUrl: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+
+        // Dibujar imagen en canvas temporal
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        // Obtener datos de píxeles
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const pixels = imageData.data;
+
+        // Encontrar límites del contenido (no blanco/transparente)
+        let minX = canvas.width;
+        let minY = canvas.height;
+        let maxX = 0;
+        let maxY = 0;
+
+        for (let y = 0; y < canvas.height; y++) {
+          for (let x = 0; x < canvas.width; x++) {
+            const i = (y * canvas.width + x) * 4;
+            const r = pixels[i];
+            const g = pixels[i + 1];
+            const b = pixels[i + 2];
+            const a = pixels[i + 3];
+
+            // Si no es blanco (rgb > 240) ni transparente (a < 10)
+            if (!(r > 240 && g > 240 && b > 240) && a > 10) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+            }
+          }
+        }
+
+        // Si no encontró contenido, devolver original
+        if (minX > maxX || minY > maxY) {
+          resolve(dataUrl);
+          return;
+        }
+
+        // Añadir un pequeño padding
+        const padding = 25;
+        minX = Math.max(0, minX - padding);
+        minY = Math.max(0, minY - padding);
+        maxX = Math.min(canvas.width - 1, maxX + padding);
+        maxY = Math.min(canvas.height - 1, maxY + padding);
+
+        // Crear canvas recortado
+        const trimmedWidth = maxX - minX + 1;
+        const trimmedHeight = maxY - minY + 1;
+        const trimmedCanvas = document.createElement('canvas');
+        trimmedCanvas.width = trimmedWidth;
+        trimmedCanvas.height = trimmedHeight;
+        const trimmedCtx = trimmedCanvas.getContext('2d');
+
+        if (!trimmedCtx) {
+          resolve(dataUrl);
+          return;
+        }
+
+        // Copiar región recortada
+        trimmedCtx.drawImage(
+          canvas,
+          minX, minY, trimmedWidth, trimmedHeight,
+          0, 0, trimmedWidth, trimmedHeight
+        );
+
+        // Convertir a dataUrl
+        resolve(trimmedCanvas.toDataURL('image/png'));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
   const generateLista = async (row: Row) => {
     if (!row.id) return;
     const raw = certificateRawMap[row.id];
@@ -531,17 +617,21 @@ export function ConstanciasAdminPage() {
             const resp = await fetch(driveUrl);
             if (resp.ok) {
               const blob = await resp.blob();
-              signatureDataUrl = await new Promise<string>((resolve, reject) => {
+              const rawDataUrl = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onloadend = () => resolve(String(reader.result));
                 reader.onerror = reject;
                 reader.readAsDataURL(blob);
               });
+              // Recortar espacios en blanco
+              signatureDataUrl = await trimImageWhitespace(rawDataUrl);
               signatureCache.set(signId, signatureDataUrl);
+              console.log('✅ Firma cargada y recortada para lista');
             }
           
         }
       } catch (e) {
+        console.warn('Error cargando firma para lista:', e);
         signatureDataUrl = undefined;
       }
 
@@ -643,7 +733,7 @@ export function ConstanciasAdminPage() {
                   { text: (raw.trainer_fullname ?? "").toString().toUpperCase(), alignment: "center" },
                   { text: "\n" },
                   ...(signatureDataUrl ? [
-                    { image: signatureDataUrl, width: 300, height: 180, alignment: "center", margin: [0, 0, 0, 4] },
+                    { image: signatureDataUrl, width: 150, height: 60, alignment: "center", margin: [0, 0, 0, 4] },
                   ] : [
                     { text: "\n\n\n", margin: [0, 0, 0, 0] },
                   ]),
@@ -756,19 +846,44 @@ export function ConstanciasAdminPage() {
         return;
       }
 
-      const cursantes = rawCursantes.map((c: any) => ({
-        nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '',
-        curp: c.curp ?? '',
-        puesto_trabajo: c.puesto_trabajo ?? c.puestoTrabajo ?? c.puesto ?? '',
-        ocupacion_especifica: c.ocupacion_especifica ?? c.ocupacionEspecifica ?? c.ocupacion ?? '',
-        certificate_overrides: {
-          trainer_fullname: c.capacitador ?? undefined,
-          course_name: c.curso_interes ?? c.cursoInteres ?? undefined,
-          course_period: `${c.fecha_inicio ?? ''} / ${c.fecha_fin ?? ''}`.trim(),
-          legal_representative: c.rep_legal ?? undefined,
-          workers_representative: c.rep_trabajadores ?? undefined,
-        },
-      })) as Array<DC3User & { certificate_overrides?: Partial<DC3CertificateData> }>;
+      const cursantes = rawCursantes.map((c: any) => {
+        // Intentar obtener el course_id del curso específico del cursante
+        let courseIdForCursante: string | undefined = undefined;
+        
+        // Buscar en certificate_courses el curso que coincida con el curso del cursante
+        if (Array.isArray(item.certificate_courses) && item.certificate_courses.length > 0) {
+          const cursoInteres = c.curso_interes ?? c.cursoInteres ?? '';
+          if (cursoInteres) {
+            const matchedCourse = item.certificate_courses.find((cc: any) => {
+              const ccName = cc?.course?.name ?? cc?.course_name ?? '';
+              return ccName === cursoInteres;
+            });
+            if (matchedCourse) {
+              courseIdForCursante = matchedCourse?.course?._id ?? matchedCourse?.course_id ?? matchedCourse?.course?.id ?? undefined;
+            }
+          }
+        }
+        
+        // Si no se encontró, usar el course_id del certificado principal
+        if (!courseIdForCursante) {
+          courseIdForCursante = item.course_id ?? item.course?._id ?? item.course?.id ?? undefined;
+        }
+        
+        return {
+          nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '',
+          curp: c.curp ?? '',
+          puesto_trabajo: c.puesto_trabajo ?? c.puestoTrabajo ?? c.puesto ?? '',
+          ocupacion_especifica: c.ocupacion_especifica ?? c.ocupacionEspecifica ?? c.ocupacion ?? '',
+          certificate_overrides: {
+            trainer_fullname: c.capacitador ?? undefined,
+            course_name: c.curso_interes ?? c.cursoInteres ?? undefined,
+            course_period: `${c.fecha_inicio ?? ''} / ${c.fecha_fin ?? ''}`.trim(),
+            legal_representative: c.rep_legal ?? undefined,
+            workers_representative: c.rep_trabajadores ?? undefined,
+            course_id: courseIdForCursante,
+          },
+        };
+      }) as Array<DC3User & { certificate_overrides?: Partial<DC3CertificateData> }>;
 
       // Garantizar que los campos de firma y capacitador estén presentes
       try {
