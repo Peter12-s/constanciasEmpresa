@@ -583,7 +583,7 @@ export async function generateAndDownloadZipDC3(
     const resolvedTipoFirma = (cursante.certificate_overrides && (cursante.certificate_overrides as any).tipo_firma)
       ?? (certificateData as any).xlsx_object?.tipo_firma
       ?? (certificateData as any).tipo_firma
-      ?? 'FISICA';
+      ?? 'DIGITAL';
 
     // Resolver area_tematica de forma defensiva: override por cursante > certificateData > certificateData.xlsx_object > fallback
     merged.area_tematica = (cursante.certificate_overrides && (cursante.certificate_overrides as any).area_tematica)
