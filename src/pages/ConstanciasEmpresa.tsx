@@ -399,8 +399,13 @@ export function ConstanciasEmpresaPage() {
                 message: 'Constancia eliminada correctamente', 
                 color: 'green' 
             });
+            
+            // Actualizar la tabla localmente removiendo la fila eliminada
+            setRows((prevRows) => prevRows.filter((r) => r.id !== row.id));
+            
+            // Refrescar desde el servidor para asegurar consistencia
             const idToUse = localStorage.getItem('mi_app_user_id');
-            if (idToUse) void fetchCertificates(idToUse);
+            if (idToUse) await fetchCertificates(idToUse);
         } catch (err) {
             showNotification({ 
                 title: 'Error', 
