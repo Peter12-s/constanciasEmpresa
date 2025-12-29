@@ -89,6 +89,7 @@ export function ConstanciasEmpresaPage() {
     // hover states para botones de acción (mejorar feedback visual)
     const [addHoverGroup, setAddHoverGroup] = useState<boolean>(false);
     const [addHoverIndividual, setAddHoverIndividual] = useState<boolean>(false);
+    const [deleteHover, setDeleteHover] = useState<string | null>(null);
 
     // Deshabilitar botón Crear en modal individual hasta que se llenen los campos requeridos
     const isIndividualSubmitDisabled = () => {
@@ -381,6 +382,33 @@ export function ConstanciasEmpresaPage() {
             ),
         },
     ];
+
+    const handleDelete = async (row: Row) => {
+        if (!row.id) return;
+        if (!window.confirm('¿Estás seguro de eliminar esta constancia?')) return;
+        
+        try {
+            await BasicPetition({ 
+                endpoint: '/certificate', 
+                method: 'DELETE', 
+                id: row.id,
+                showNotifications: false 
+            });
+            showNotification({ 
+                title: 'Éxito', 
+                message: 'Constancia eliminada correctamente', 
+                color: 'green' 
+            });
+            const idToUse = localStorage.getItem('mi_app_user_id');
+            if (idToUse) void fetchCertificates(idToUse);
+        } catch (err) {
+            showNotification({ 
+                title: 'Error', 
+                message: 'No se pudo eliminar la constancia', 
+                color: 'red' 
+            });
+        }
+    };
 
     async function fetchCertificates(certificate_user_id?: string | null) {
         try {
@@ -1128,6 +1156,20 @@ export function ConstanciasEmpresaPage() {
                             onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
                         >
                             Lista
+                        </Button>
+                        <Button
+                            onClick={() => void handleDelete(row)}
+                            className={`action-btn small-action-btn`}
+                            onMouseEnter={() => setDeleteHover(row.id ?? null)}
+                            onMouseLeave={() => setDeleteHover(null)}
+                            style={{
+                                backgroundColor: '#d32f2f',
+                                color: 'white',
+                                transition: 'filter 120ms ease',
+                                filter: deleteHover === row.id ? 'brightness(0.8)' : 'none'
+                            }}
+                        >
+                            Eliminar
                         </Button>
                     </div>
                 )}

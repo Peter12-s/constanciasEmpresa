@@ -59,10 +59,37 @@ export function ConstanciasAdminPage() {
   const [pageSize, setPageSize] = useState<number>(5);
 
   const [verifySending, setVerifySending] = useState(false);
+  const [deleteHover, setDeleteHover] = useState<string | null>(null);
 
   useEffect(() => {
     void fetchCertificates();
   }, []);
+
+  const handleDelete = async (row: Row) => {
+    if (!row.id) return;
+    if (!window.confirm('¿Estás seguro de eliminar esta constancia?')) return;
+    
+    try {
+      await BasicPetition({ 
+        endpoint: '/certificate', 
+        method: 'DELETE', 
+        id: row.id,
+        showNotifications: false 
+      });
+      showNotification({ 
+        title: 'Éxito', 
+        message: 'Constancia eliminada correctamente', 
+        color: 'green' 
+      });
+      void fetchCertificates();
+    } catch (err) {
+      showNotification({ 
+        title: 'Error', 
+        message: 'No se pudo eliminar la constancia', 
+        color: 'red' 
+      });
+    }
+  };
 
   async function fetchCertificates() {
     try {
@@ -996,6 +1023,21 @@ export function ConstanciasAdminPage() {
             style={{ backgroundColor: "var(--olive-green)", color: "white" }}
           >
             Lista
+          </Button>
+          <Button
+            size="xs"
+            className="action-btn small-action-btn"
+            onClick={() => void handleDelete(row)}
+            onMouseEnter={() => setDeleteHover(row.id ?? null)}
+            onMouseLeave={() => setDeleteHover(null)}
+            style={{ 
+              backgroundColor: "#d32f2f", 
+              color: "white",
+              transition: 'filter 120ms ease',
+              filter: deleteHover === row.id ? 'brightness(0.8)' : 'none'
+            }}
+          >
+            Eliminar
           </Button>
         </Group>
       )} />

@@ -85,9 +85,11 @@ export function UsuariosPage() {
       company_name: (value, values) => (values.user_type === 'EMPRESA' && (!value || value.length === 0) ? 'Empresa obligatoria' : null),
   rfc: (value, values) => (values.user_type === 'EMPRESA' && (!value || value.length === 0) ? 'RFC obligatorio para empresa' : null),
       email: (value) => (value ? (/^\S+@\S+\.\S+$/.test(value) ? null : 'Correo inválido') : null),
-      password: (value) => {
-        if (!value || value.length === 0) return 'Contraseña obligatoria';
-        if (value.length < 6) return 'La contraseña debe tener al menos 6 caracteres';
+      password: (value, values) => {
+        // Solo validar contraseña si no estamos editando o si se ingresó algo
+        if (editingUser && (!value || value.length === 0)) return null;
+        if (!editingUser && (!value || value.length === 0)) return 'Contraseña obligatoria';
+        if (value.length > 0 && value.length < 6) return 'La contraseña debe tener al menos 6 caracteres';
         return null;
       },
     },
@@ -109,7 +111,12 @@ export function UsuariosPage() {
     if (editingUser) {
       (async () => {
         const id = editingUser._id;
-        const res: any = await BasicPetition({ endpoint: '/certificate-user', method: 'PATCH', id, data: values });
+        // Si estamos editando, solo enviar password si no está vacío
+        const dataToSend: any = { ...values };
+        if (!dataToSend.password || dataToSend.password.length === 0) {
+          delete dataToSend.password;
+        }
+        const res: any = await BasicPetition({ endpoint: '/certificate-user', method: 'PATCH', id, data: dataToSend });
         // Actualizar solo el usuario con el ID correspondiente
         setUsers((prev) => prev.map((u) => (u._id === id ? { ...u, ...res } : u)));
         // Refrescar datos del servidor para asegurar consistencia
@@ -136,7 +143,7 @@ export function UsuariosPage() {
       f_surname: (user as any).f_surname ?? '',
       s_surname: (user as any).s_surname ?? '',
       company_name: user.company_name ?? '',
-  rfc: (user as any).rfc ?? '',
+      rfc: (user as any).rfc ?? '',
       user_type: user.user_type,
       email: user.email ?? '',
       phone: user.phone ?? '',
@@ -261,7 +268,12 @@ export function UsuariosPage() {
             onChange={(e) => form.setFieldValue('phone', String(e.currentTarget.value ?? '').toUpperCase())}
             mb="sm"
           />
-          <PasswordInput label="Contraseña" placeholder="Ingrese una contraseña" {...form.getInputProps('password')} mb="sm" />
+          <PasswordInput 
+            label={editingUser ? "Contraseña (dejar vacío para no cambiar)" : "Contraseña"} 
+            placeholder={editingUser ? "Dejar vacío para mantener la actual" : "Ingrese una contraseña"} 
+            {...form.getInputProps('password')} 
+            mb="sm" 
+          />
 
           <Group
             justify="flex-end"
