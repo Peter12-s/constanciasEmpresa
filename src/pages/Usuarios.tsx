@@ -14,6 +14,7 @@ import { useForm } from '@mantine/form';
 import { ResponsiveDataTable, type Column } from '../components/ResponsiveDataTable';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { BasicPetition } from '../core/petition';
+import { showNotification } from '@mantine/notifications';
 
 
 type User = {
@@ -53,14 +54,44 @@ export function UsuariosPage() {
 
   const handleConfirmDelete = () => {
     (async () => {
-      const deleted = await BasicPetition({
-        endpoint: '/certificate-user',
-        method: 'DELETE',
-        id: String(selectedUserId),
-      });
+      try {
+        const deleted = await BasicPetition({
+          endpoint: '/certificate-user',
+          method: 'DELETE',
+          id: String(selectedUserId),
+          showNotifications: false,
+        });
 
-      if (deleted) {
-        setUsers((prev) => prev.filter((u) => String((u as any)._id) !== String(selectedUserId)));
+        if (deleted) {
+          setUsers((prev) => prev.filter((u) => String((u as any)._id) !== String(selectedUserId)));
+          showNotification({
+            title: 'Éxito',
+            message: 'Usuario eliminado correctamente',
+            color: 'green',
+          });
+        }
+      } catch (err: any) {
+        // Verificar si el error es por foreign key constraint
+        const errorMessage = err?.data?.message || err?.message || '';
+        const isForeignKeyError = errorMessage.toLowerCase().includes('foreign key') || 
+                                   errorMessage.toLowerCase().includes('constraint') ||
+                                   errorMessage.toLowerCase().includes('certificates');
+        
+        if (isForeignKeyError) {
+          showNotification({
+            title: 'No se puede eliminar',
+            message: 'Este usuario tiene certificados pendientes. Revisa los certificados asociados antes de eliminar.',
+            color: 'yellow',
+          });
+        } else {
+          showNotification({
+            title: 'Error',
+            message: errorMessage || 'No se pudo eliminar el usuario',
+            color: 'red',
+          });
+        }
+      } finally {
+        setDeleteModalOpen(false);
       }
     })();
   };
