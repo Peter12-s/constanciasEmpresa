@@ -385,7 +385,7 @@ export function ConstanciasEmpresaPage() {
 
     const handleDelete = async (row: Row) => {
         if (!row.id) return;
-        if (!window.confirm('¿Estás seguro de eliminar esta constancia?')) return;
+        if (!window.confirm('¿Estás seguro de eliminar esta solicitud de constancia(s)?')) return;
         
         try {
             await BasicPetition({ 
@@ -943,10 +943,15 @@ export function ConstanciasEmpresaPage() {
                 legal_representative: item.legal_representative ?? '',
                 workers_representative: item.workers_representative ?? '',
                 area_tematica: item.xlsx_object?.area_tematica ?? item.area_tematica ?? parsedXlsxObject?.area_tematica ?? '6000 Seguridad',
-                tipo_firma: item.xlsx_object?.tipo_firma ?? item.tipo_firma ?? parsedXlsxObject?.xlsx_object?.tipo_firma ?? 'DIGITAL',
                 certificate_courses: certificate_courses && certificate_courses.length > 0 ? certificate_courses : undefined,
                 sign: item.sign ?? undefined,
             };
+            
+            // Solo agregar tipo_firma si es explícitamente 'FISICA'
+            const tipoFirmaValue = item.xlsx_object?.tipo_firma ?? item.tipo_firma ?? parsedXlsxObject?.xlsx_object?.tipo_firma;
+            if (tipoFirmaValue === 'FISICA') {
+                certificateData.tipo_firma = 'FISICA';
+            }
 
             // Preferir el XLSX almacenado en backend para esta petición; solo usar el XLSX parseado en memoria
             // si el backend no tiene uno (evita mezclar un XLSX global con otras peticiones)
@@ -1007,12 +1012,11 @@ export function ConstanciasEmpresaPage() {
                             const endDate = matchedCourse?.end ?? '';
                             const coursePeriodForCursante = (startDate && endDate) ? `${startDate} / ${endDate}` : undefined;
                             
-                            cursantes.push({
+                            const cursanteData: any = {
                                 nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '',
                                 curp: c.curp ?? '',
                                 puesto_trabajo: c.puesto_trabajo ?? c.puestoTrabajo ?? c.puesto ?? '',
                                 ocupacion_especifica: c.ocupacion_especifica ?? c.ocupacionEspecifica ?? c.ocupacion ?? '',
-                                tipo_firma: (item.xlsx_object?.tipo_firma ?? item.tipo_firma ?? parsedXlsxObject?.xlsx_object?.tipo_firma) ?? c.tipo_firma ?? (sourceXlsx?.tipo_firma ?? undefined),
                                 certificate_overrides: {
                                     trainer_fullname: c.capacitador ?? undefined,
                                     course_name: courseNameForCursante,
@@ -1022,7 +1026,13 @@ export function ConstanciasEmpresaPage() {
                                     workers_representative: c.rep_trabajadores ?? undefined,
                                     course_id: courseIdForCursante,
                                 },
-                            });
+                            };
+                            // Solo incluir tipo_firma si es explícitamente FISICA
+                            const tipoFirmaVal = item.xlsx_object?.tipo_firma ?? item.tipo_firma ?? parsedXlsxObject?.xlsx_object?.tipo_firma ?? c.tipo_firma ?? sourceXlsx?.tipo_firma;
+                            if (tipoFirmaVal === 'FISICA') {
+                                cursanteData.tipo_firma = 'FISICA';
+                            }
+                            cursantes.push(cursanteData);
                         });
                     }
                 } else {
@@ -1034,12 +1044,11 @@ export function ConstanciasEmpresaPage() {
                     const cursanteEnd = c.fecha_fin ?? '';
                     const coursePeriodForCursante = (cursanteStart && cursanteEnd) ? `${cursanteStart} / ${cursanteEnd}` : item.course_period ?? undefined;
                     
-                    cursantes.push({
+                    const cursanteData: any = {
                         nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '',
                         curp: c.curp ?? '',
                         puesto_trabajo: c.puesto_trabajo ?? c.puestoTrabajo ?? c.puesto ?? '',
                         ocupacion_especifica: c.ocupacion_especifica ?? c.ocupacionEspecifica ?? c.ocupacion ?? '',
-                        tipo_firma: (item.xlsx_object?.tipo_firma ?? item.tipo_firma ?? parsedXlsxObject?.xlsx_object?.tipo_firma) ?? c.tipo_firma ?? (sourceXlsx?.tipo_firma ?? undefined),
                         certificate_overrides: {
                             trainer_fullname: c.capacitador ?? undefined,
                             course_name: courseNameForCursante,
@@ -1049,7 +1058,13 @@ export function ConstanciasEmpresaPage() {
                             workers_representative: c.rep_trabajadores ?? undefined,
                             course_id: courseIdForCursante,
                         },
-                    });
+                    };
+                    // Solo incluir tipo_firma si es explícitamente FISICA
+                    const tipoFirmaVal = item.xlsx_object?.tipo_firma ?? item.tipo_firma ?? parsedXlsxObject?.xlsx_object?.tipo_firma ?? c.tipo_firma ?? sourceXlsx?.tipo_firma;
+                    if (tipoFirmaVal === 'FISICA') {
+                        cursanteData.tipo_firma = 'FISICA';
+                    }
+                    cursantes.push(cursanteData);
                 }
             });
 

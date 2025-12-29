@@ -632,16 +632,17 @@ export async function generateAndDownloadZipDC3(
 
     // Nota: generaremos el QR por curso más abajo (dentro del bucle) para incluir el course_id
 
-    // Si hay firma digital (id en Google Drive) y el cursante solicita firma DIGITAL,
+    // Si hay firma digital (id en Google Drive) y el cursante NO solicita firma FISICA,
     // intentar obtener la imagen desde Google Drive como data URL.
     let signatureDataUrl: string | undefined = undefined;
     try {
       const signId = (perCert as any).sign ?? undefined;
-      // Si la constancia tiene sign y el método de firma es DIGITAL (a nivel de cursante o certificado), descargarla
+      // Si la constancia tiene sign y el método de firma NO es explícitamente FISICA, descargarla
       const cursanteTipo = (cursante as any).tipo_firma as string | undefined;
       const certTipo = (perCert as any).tipo_firma as string | undefined;
+      const tipoFirmaFinal = cursanteTipo ?? certTipo;
 
-      if (signId && (cursanteTipo === 'DIGITAL' || certTipo === 'DIGITAL')) {
+      if (signId && tipoFirmaFinal !== 'FISICA') {
         if (signatureCache.has(signId)) {
           signatureDataUrl = signatureCache.get(signId);
         } else {
@@ -660,12 +661,10 @@ export async function generateAndDownloadZipDC3(
               reader.onerror = reject;
               reader.readAsDataURL(blob);
             });
-          } else {
           }
           // almacenar en caché (incluso si es undefined) para evitar reintentos innecesarios
           signatureCache.set(signId, signatureDataUrl);
         }
-      } else {
       }
     } catch (e) {
       // almacenar en caché un valor undefined para no reintentar

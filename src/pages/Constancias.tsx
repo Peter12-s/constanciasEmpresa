@@ -67,7 +67,7 @@ export function ConstanciasAdminPage() {
 
   const handleDelete = async (row: Row) => {
     if (!row.id) return;
-    if (!window.confirm('¿Estás seguro de eliminar esta constancia?')) return;
+    if (!window.confirm('¿Estás seguro de eliminar esta solicitud de constancia(s)?')) return;
     
     try {
       await BasicPetition({ 

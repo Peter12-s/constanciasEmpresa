@@ -342,8 +342,12 @@ export async function generateAndDownloadZipDC3FromTemplate(
       const certTipo = (perCert as any).tipo_firma as string | undefined;
       const xlsxTipo = (perCert as any).xlsx_object?.tipo_firma as string | undefined;
       
+      // Solo incluir firma si:
+      // 1. Existe signId (hay firma disponible)
+      // 2. Y NO es explícitamente 'FISICA' (si no se especifica tipo_firma o es 'DIGITAL', usar firma)
+      const tipoFirmaFinal = cursanteTipo ?? certTipo ?? xlsxTipo;
       
-      if (signId && (cursanteTipo === 'DIGITAL' || certTipo === 'DIGITAL' || xlsxTipo === 'DIGITAL')) {
+      if (signId && tipoFirmaFinal !== 'FISICA') {
         if (signatureCache.has(signId)) {
           signatureDataUrl = signatureCache.get(signId);
         } else {
@@ -358,10 +362,8 @@ export async function generateAndDownloadZipDC3FromTemplate(
               reader.readAsDataURL(blob);
             });
             signatureCache.set(signId, signatureDataUrl);
-          } else {
           }
         }
-      } else {
       }
     } catch (e) {
       signatureDataUrl = undefined;
