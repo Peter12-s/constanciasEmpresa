@@ -943,7 +943,7 @@ export function ConstanciasEmpresaPage() {
                 legal_representative: item.legal_representative ?? '',
                 workers_representative: item.workers_representative ?? '',
                 area_tematica: item.xlsx_object?.area_tematica ?? item.area_tematica ?? parsedXlsxObject?.area_tematica ?? '6000 Seguridad',
-                tipo_firma: item.xlsx_object?.tipo_firma ?? item.tipo_firma ?? parsedXlsxObject?.xlsx_object?.tipo_firma ?? 'FISICA',
+                tipo_firma: item.xlsx_object?.tipo_firma ?? item.tipo_firma ?? parsedXlsxObject?.xlsx_object?.tipo_firma ?? 'DIGITAL',
                 certificate_courses: certificate_courses && certificate_courses.length > 0 ? certificate_courses : undefined,
                 sign: item.sign ?? undefined,
             };

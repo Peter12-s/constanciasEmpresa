@@ -208,7 +208,7 @@ export function ConstanciasAdminPage() {
         ocupacion_especifica: ocupacionCanon ?? (rawOcc || ''),
         repLegal: raw?.legal_representative ?? "",
         repTrabajadores: raw?.workers_representative ?? "",
-        tipoFirma: raw?.xlsx_object?.tipo_firma ?? c.tipo_firma ?? "FISICA",
+        tipoFirma: raw?.xlsx_object?.tipo_firma ?? c.tipo_firma ?? "DIGITAL",
         capacitador: raw?.trainer_fullname ?? "",
       };
 
@@ -335,7 +335,7 @@ export function ConstanciasAdminPage() {
 
     const usersToSave = Object.values(usersMap).map((u) => ({ curp: u.curp, nombre: u.nombre, puesto_trabajo: u.puesto_trabajo, ocupacion_especifica: u.ocupacion_especifica }));
 
-    const tipoFirmaToSave = selectedRowUsers[0]?.tipoFirma ?? "FISICA";
+    const tipoFirmaToSave = selectedRowUsers[0]?.tipoFirma ?? "DIGITAL";
     const patchData: any = {
       certificate_user_id: prevRaw.certificate_user_id ?? undefined,
       course_id: prevRaw.course_id ?? prevRaw.course?.id ?? undefined,
@@ -413,7 +413,7 @@ export function ConstanciasAdminPage() {
         }
 
         // Determine if other certificate-level fields changed (reps, area, tipo_firma)
-        const tipoFirmaToSave = selectedRowUsers[0]?.tipoFirma ?? prevRaw?.xlsx_object?.tipo_firma ?? prevRaw?.tipo_firma ?? 'FISICA';
+        const tipoFirmaToSave = selectedRowUsers[0]?.tipoFirma ?? prevRaw?.xlsx_object?.tipo_firma ?? prevRaw?.tipo_firma ?? 'DIGITAL';
         const repLegalToSave = repLegalAll || prevRaw.legal_representative || undefined;
         const repTrabToSave = repTrabAll || prevRaw.workers_representative || undefined;
         const areaToSave = areaTematicaAll || (prevRaw?.xlsx_object?.area_tematica ?? prevRaw?.area_tematica ?? '6000 Seguridad');
@@ -1047,7 +1047,7 @@ export function ConstanciasAdminPage() {
 
         <div style={{ display: "flex", gap: 16, marginBottom: 12, alignItems: "center", flexDirection: isMobile ? 'column' : 'row', flexWrap: isTablet ? 'wrap' : 'nowrap' }}>
           <Text>Tipo de firma:</Text>
-          <Select value={selectedRowUsers[0]?.tipoFirma || "FISICA"} onChange={(v) => v && handleApplyToAll('tipoFirma', v)} data={["DIGITAL", "FISICA"]} style={{ width: 150 }} />
+          <Select value={selectedRowUsers[0]?.tipoFirma || "DIGITAL"} onChange={(v) => v && handleApplyToAll('tipoFirma', v)} data={["DIGITAL", "FISICA"]} style={{ width: 150 }} />
 
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: 8, width: isMobile ? '100%' : undefined }}>
             <Text>Rep Legal:</Text>
