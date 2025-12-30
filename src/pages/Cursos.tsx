@@ -856,7 +856,16 @@ export function CursosPage() {
             showNotification({ title: 'Error', message: 'No se pudo asignar el curso', color: 'red' });
           }
         }}>
-          <Select label="Cursos disponibles" placeholder="Selecciona un curso" data={coursesCatalog.map(c => ({ value: String(c.id), label: `${c.name} (${typeof c.duration === 'number' ? String(c.duration) + 'h' : c.duration})` }))} value={selectedCatalogCourse ? String(selectedCatalogCourse) : null} onChange={(v) => setSelectedCatalogCourse(v ? v : null)} />
+          <Select
+            label="Cursos disponibles"
+            placeholder="Selecciona un curso"
+            searchable
+            clearable
+            maxDropdownHeight={260}
+            data={coursesCatalog.map(c => ({ value: String(c.id), label: `${c.name} (${typeof c.duration === 'number' ? String(c.duration) + 'h' : c.duration})` }))}
+            value={selectedCatalogCourse ? String(selectedCatalogCourse) : null}
+            onChange={(v) => setSelectedCatalogCourse(v ? v : null)}
+          />
           <Group justify="flex-end" mt="md">
             <Button type="submit" style={{ background: "#88a04b", color: "white" }}>Asignar curso</Button>
           </Group>
