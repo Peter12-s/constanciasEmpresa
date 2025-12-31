@@ -15,6 +15,7 @@ import { useForm } from '@mantine/form';
 import { showNotification } from '@mantine/notifications';
 import { BasicPetition } from '../core/petition';
 import { ResponsiveDataTable, type Column } from "../components/ResponsiveDataTable";
+import { ConfirmModal } from '../components/ConfirmModal';
 import { generateAndDownloadZipDC3, type DC3User, type DC3CertificateData } from '../components/createPDF';
 import { generateAndDownloadZipDC3FromTemplate } from '../components/createPDFFromTemplate';
 import { FaFileUpload, FaPlus } from "react-icons/fa";
@@ -383,37 +384,37 @@ export function ConstanciasEmpresaPage() {
         },
     ];
 
-    const handleDelete = async (row: Row) => {
-        if (!row.id) return;
-        if (!window.confirm('¿Estás seguro de eliminar esta solicitud de constancia(s)?')) return;
-        
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [deleteTargetRow, setDeleteTargetRow] = useState<Row | null>(null);
+
+    const handleDeleteClick = (row: Row) => {
+        setDeleteTargetRow(row);
+        setDeleteModalOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        const row = deleteTargetRow;
+        if (!row || !row.id) {
+            setDeleteModalOpen(false);
+            setDeleteTargetRow(null);
+            return;
+        }
+
         try {
-            await BasicPetition({ 
-                endpoint: '/certificate', 
-                method: 'DELETE', 
-                id: row.id,
-                showNotifications: false 
-            });
-            showNotification({ 
-                title: 'Éxito', 
-                message: 'Constancia eliminada correctamente', 
-                color: 'green' 
-            });
-            
-            // Actualizar la tabla localmente removiendo la fila eliminada
+            await BasicPetition({ endpoint: '/certificate', method: 'DELETE', id: row.id, showNotifications: false });
+            showNotification({ title: 'Éxito', message: 'Constancia eliminada correctamente', color: 'green' });
+            // Actualizar UI local
             setRows((prevRows) => prevRows.filter((r) => r.id !== row.id));
-            
-            // Refrescar desde el servidor para asegurar consistencia
+            // Refrescar desde el servidor
             const idToUse = localStorage.getItem('mi_app_user_id');
             if (idToUse) await fetchCertificates(idToUse);
         } catch (err) {
-            showNotification({ 
-                title: 'Error', 
-                message: 'No se pudo eliminar la constancia', 
-                color: 'red' 
-            });
+            showNotification({ title: 'Error', message: 'No se pudo eliminar la constancia', color: 'red' });
+        } finally {
+            setDeleteModalOpen(false);
+            setDeleteTargetRow(null);
         }
-    };
+    }; 
 
     async function fetchCertificates(certificate_user_id?: string | null) {
         try {
@@ -1178,7 +1179,7 @@ export function ConstanciasEmpresaPage() {
                             Lista
                         </Button>
                         <Button
-                            onClick={() => void handleDelete(row)}
+                            onClick={() => handleDeleteClick(row)}
                             className={`action-btn small-action-btn`}
                             onMouseEnter={() => setDeleteHover(row.id ?? null)}
                             onMouseLeave={() => setDeleteHover(null)}
@@ -1190,7 +1191,7 @@ export function ConstanciasEmpresaPage() {
                             }}
                         >
                             Eliminar
-                        </Button>
+                        </Button> 
                     </div>
                 )}
             />
@@ -1326,6 +1327,10 @@ export function ConstanciasEmpresaPage() {
                                     if (courseOpts.length === 1) form.setFieldValue('curso', courseOpts[0].value);
                                 }
                             }}
+                            searchable
+                            clearable
+                            maxDropdownHeight={260}
+                            placeholder="Selecciona un capacitador"
                         />
 
                         <Select
@@ -1335,6 +1340,9 @@ export function ConstanciasEmpresaPage() {
                             onChange={(v) => form.setFieldValue('curso', v ?? '')}
                             disabled={coursesDisabled}
                             placeholder={coursesDisabled ? 'Sin cursos disponibles' : 'Selecciona un curso'}
+                            searchable
+                            clearable
+                            maxDropdownHeight={260}
                         />
 
                         {/* FECHAS */}
@@ -1515,6 +1523,10 @@ export function ConstanciasEmpresaPage() {
                                     individualForm.setFieldValue('courses_ids', []);
                                 }
                             }}
+                            searchable
+                            clearable
+                            maxDropdownHeight={260}
+                            placeholder="Selecciona un capacitador"
                         />
 
                         <MultiSelect
@@ -1536,6 +1548,9 @@ export function ConstanciasEmpresaPage() {
                                 });
                             }}
                             disabled={coursesDisabled}
+                            searchable
+                            clearable
+                            maxDropdownHeight={260}
                         />
 
                         {/* Fechas por curso dinámicas */}
@@ -1627,6 +1642,13 @@ export function ConstanciasEmpresaPage() {
                     </div>
                 </form>
             </Modal>
+            <ConfirmModal
+                opened={deleteModalOpen}
+                onClose={() => setDeleteModalOpen(false)}
+                onConfirm={handleConfirmDelete}
+                title="Confirmar eliminación"
+                message="¿Estás seguro de eliminar esta solicitud de constancia(s)?"
+            />
         </Container>
     );
 }

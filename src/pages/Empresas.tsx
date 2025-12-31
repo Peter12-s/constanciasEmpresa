@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Container, Title, Modal, TextInput, Button, ScrollArea } from '@mantine/core';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { useForm } from '@mantine/form';
 import { showNotification } from '@mantine/notifications';
 import { ResponsiveDataTable, type Column } from '../components/ResponsiveDataTable';
@@ -57,10 +58,24 @@ export function EmpresasPage() {
     form.reset();
   };
 
-  const onDelete = (row: Empresa) => {
-    setEmpresas((s) => s.filter((e) => e.id !== row.id));
-    showNotification({ title: 'Eliminada', message: 'Empresa eliminada', color: 'red' });
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedEmpresa, setSelectedEmpresa] = useState<Empresa | null>(null);
+
+  const onDeleteClick = (row: Empresa) => {
+    setSelectedEmpresa(row);
+    setDeleteModalOpen(true);
   };
+
+  const handleConfirmDeleteEmpresa = () => {
+    if (!selectedEmpresa) {
+      setDeleteModalOpen(false);
+      return;
+    }
+    setEmpresas((s) => s.filter((e) => e.id !== selectedEmpresa.id));
+    showNotification({ title: 'Eliminada', message: 'Empresa eliminada', color: 'red' });
+    setDeleteModalOpen(false);
+    setSelectedEmpresa(null);
+  }; 
 
   // optional: simple search + page controls
   const [search, _setSearch] = useState('');
@@ -92,7 +107,7 @@ export function EmpresasPage() {
         actions={(row: any) => (
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => onEdit(row)} style={{ background: 'var(--olive-green)', color: 'white', padding: '6px 10px', borderRadius: 6, border: 'none' }}>Editar</button>
-            <button onClick={() => onDelete(row)} style={{ background: '#F44336', color: 'white', padding: '6px 10px', borderRadius: 6, border: 'none' }}>Eliminar</button>
+            <button onClick={() => onDeleteClick(row)} style={{ background: '#F44336', color: 'white', padding: '6px 10px', borderRadius: 6, border: 'none' }}>Eliminar</button>
           </div>
         )}
       />

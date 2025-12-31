@@ -14,6 +14,7 @@ import {
 import { showNotification } from "@mantine/notifications";
 import { BasicPetition } from "../core/petition";
 import { ResponsiveDataTable, type Column } from "../components/ResponsiveDataTable";
+import { ConfirmModal } from '../components/ConfirmModal';
 import { generateAndDownloadZipDC3, type DC3User, type DC3CertificateData } from "../components/createPDF";
 import { generateAndDownloadZipDC3FromTemplate } from "../components/createPDFFromTemplate";
 import { FaExclamationTriangle } from "react-icons/fa";
@@ -65,31 +66,33 @@ export function ConstanciasAdminPage() {
     void fetchCertificates();
   }, []);
 
-  const handleDelete = async (row: Row) => {
-    if (!row.id) return;
-    if (!window.confirm('¿Estás seguro de eliminar esta solicitud de constancia(s)?')) return;
-    
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteTargetRow, setDeleteTargetRow] = useState<Row | null>(null);
+
+  const handleDeleteClick = (row: Row) => {
+    setDeleteTargetRow(row);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    const row = deleteTargetRow;
+    if (!row || !row.id) {
+      setDeleteModalOpen(false);
+      setDeleteTargetRow(null);
+      return;
+    }
+
     try {
-      await BasicPetition({ 
-        endpoint: '/certificate', 
-        method: 'DELETE', 
-        id: row.id,
-        showNotifications: false 
-      });
-      showNotification({ 
-        title: 'Éxito', 
-        message: 'Constancia eliminada correctamente', 
-        color: 'green' 
-      });
+      await BasicPetition({ endpoint: '/certificate', method: 'DELETE', id: row.id, showNotifications: false });
+      showNotification({ title: 'Éxito', message: 'Constancia eliminada correctamente', color: 'green' });
       void fetchCertificates();
     } catch (err) {
-      showNotification({ 
-        title: 'Error', 
-        message: 'No se pudo eliminar la constancia', 
-        color: 'red' 
-      });
+      showNotification({ title: 'Error', message: 'No se pudo eliminar la constancia', color: 'red' });
+    } finally {
+      setDeleteModalOpen(false);
+      setDeleteTargetRow(null);
     }
-  };
+  }; 
 
   async function fetchCertificates() {
     try {
@@ -1027,7 +1030,7 @@ export function ConstanciasAdminPage() {
           <Button
             size="xs"
             className="action-btn small-action-btn"
-            onClick={() => void handleDelete(row)}
+            onClick={() => handleDeleteClick(row)}
             onMouseEnter={() => setDeleteHover(row.id ?? null)}
             onMouseLeave={() => setDeleteHover(null)}
             style={{ 
@@ -1327,6 +1330,13 @@ export function ConstanciasAdminPage() {
           </div>
         </div>
       </Modal>
+      <ConfirmModal
+        opened={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Confirmar eliminación"
+        message="¿Estás seguro de eliminar esta solicitud de constancia(s)?"
+      />
     </Container>
   );
 }
