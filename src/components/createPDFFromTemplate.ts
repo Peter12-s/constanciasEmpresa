@@ -286,9 +286,9 @@ async function fillPDFTemplate(
       const drawWidth = Math.round(intrinsicWidth * scale) || maxWidth;
       const drawHeight = Math.round(intrinsicHeight * scale) || maxHeight;
 
-      const xPos = 70;
+      const xPos = 75;
       // Mover la firma ligeramente hacia arriba (reducimos la coordenada de referencia)
-      const verticalOffset = 25; // puntos que sube la imagen
+      const verticalOffset = 35; // puntos que sube la imagen
       const yPos = height - (465 - verticalOffset);
 
       firstPage.drawImage(signImage, {
