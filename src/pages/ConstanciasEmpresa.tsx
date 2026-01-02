@@ -1161,7 +1161,7 @@ export function ConstanciasEmpresaPage() {
                             className={`action-btn small-action-btn`}
                             style={{ background: row.estado === 'pendiente' ? '#cccccc' : 'var(--olive-green)', color: row.estado === 'pendiente' ? '#666666' : 'white' }}
                         >
-                            Constancias
+                            DC3
                         </Button>
                         <Button
                             onClick={() => void generateLista(row)}

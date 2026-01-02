@@ -1018,7 +1018,7 @@ export function ConstanciasAdminPage() {
       <ResponsiveDataTable columns={columns} data={rows} initialPageSize={10} actions={(row) => (
         <Group gap={4} align="center">
           <Button size="xs" className="action-btn small-action-btn" onClick={() => { handleVerificar(row); }} style={{ backgroundColor: "var(--olive-green)", color: "white" }}>Verificar</Button>
-          <Button size="xs" className="action-btn small-action-btn" onClick={() => void handleGeneratePDFs(row)} style={{ backgroundColor: "var(--olive-green)", color: "white" }}>Generar PDFs</Button>
+          <Button size="xs" className="action-btn small-action-btn" onClick={() => void handleGeneratePDFs(row)} style={{ backgroundColor: "var(--olive-green)", color: "white" }}>DC3</Button>
           <Button
             size="xs"
             className="action-btn small-action-btn"
