@@ -275,14 +275,30 @@ async function fillPDFTemplate(
     try {
       const signImageBytes = await fetch(signatureDataUrl).then(res => res.arrayBuffer());
       const signImage = await pdfDoc.embedPng(signImageBytes);
-      
+
+      // Evitar escalar hacia arriba (no hacer upscale) para prevenir pixelado.
+      // Redimensionar proporcionalmente para caber en un máximo razonable.
+      const intrinsicWidth = (signImage as any).width ?? 0;
+      const intrinsicHeight = (signImage as any).height ?? 0;
+      const maxWidth = 140; // ancho máximo en pts
+      const maxHeight = 60; // alto máximo en pts
+      const scale = intrinsicWidth && intrinsicHeight ? Math.min(1, Math.min(maxWidth / intrinsicWidth, maxHeight / intrinsicHeight)) : 1;
+      const drawWidth = Math.round(intrinsicWidth * scale) || maxWidth;
+      const drawHeight = Math.round(intrinsicHeight * scale) || maxHeight;
+
+      const xPos = 55;
+      // Mover la firma ligeramente hacia arriba (reducimos la coordenada de referencia)
+      const verticalOffset = 10; // puntos que sube la imagen
+      const yPos = height - (465 - verticalOffset);
+
       firstPage.drawImage(signImage, {
-        x: 55,
-        y: height - 465,
-        width: 150,
-        height: 80
+        x: xPos,
+        y: yPos,
+        width: drawWidth,
+        height: drawHeight,
       });
     } catch (e) {
+      // fallbacks silenciosos
     }
   }
   
