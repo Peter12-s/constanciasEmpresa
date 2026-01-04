@@ -10,14 +10,16 @@ import {
   Group,
   TextInput,
   Select,
+  Tooltip,
+  FileInput,
 } from "@mantine/core";
 import { showNotification } from "@mantine/notifications";
 import { BasicPetition } from "../core/petition";
 import { ResponsiveDataTable, type Column } from "../components/ResponsiveDataTable";
 import { ConfirmModal } from '../components/ConfirmModal';
-import { generateAndDownloadZipDC3, type DC3User, type DC3CertificateData } from "../components/createPDF";
-import { generateAndDownloadZipDC3FromTemplate } from "../components/createPDFFromTemplate";
-import { FaExclamationTriangle } from "react-icons/fa";
+import { type DC3User, type DC3CertificateData } from "../components/createPDF";
+import { generateAndDownloadZipDC3FromTemplate, generateDiplomasDoGroupFromTemplate, generateReportFromTemplate, generatePhotoReportFromTemplate } from "../components/createPDFFromTemplate";
+import { FaExclamationTriangle, FaCamera } from "react-icons/fa";
 import pdfMake from "pdfmake/build/pdfmake";
 import appConfig from "../core/constants/appConfig";
 
@@ -92,7 +94,507 @@ export function ConstanciasAdminPage() {
       setDeleteModalOpen(false);
       setDeleteTargetRow(null);
     }
-  }; 
+  };
+
+
+  // Dogroup: usamos `dogroupProcessing` para mostrar loading cuando se genera o se envía la solicitud
+  const [dogroupProcessing, setDogroupProcessing] = useState(false);
+  // Loader específico para la acción de "Generar Reporte" (evita activar ambos loaders a la vez)
+  const [dogroupReportGenerating, setDogroupReportGenerating] = useState(false);
+
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportUploading, setReportUploading] = useState(false);
+  const [reportFiles, setReportFiles] = useState<File[]>([]);
+  const [reportSelectedCourse, setReportSelectedCourse] = useState<string | null>(null);
+  const [reportTargetCertificateId, setReportTargetCertificateId] = useState<string | null>(null);
+
+  // Modal de reporte fotográfico
+  const [photoReportModalOpen, setPhotoReportModalOpen] = useState(false);
+  const [photoReportCourse, setPhotoReportCourse] = useState<string>('');
+  const [photoReportTrainer, setPhotoReportTrainer] = useState<string>('');
+  const [photoReportStartDate, setPhotoReportStartDate] = useState<string>('');
+  const [photoReportEndDate, setPhotoReportEndDate] = useState<string>('');
+  const [photoReportFiles, setPhotoReportFiles] = useState<File[]>([]);
+  const [photoReportGenerating, setPhotoReportGenerating] = useState(false);
+  const [photoReportStps, setPhotoReportStps] = useState<string>('');
+  const [photoReportDuration, setPhotoReportDuration] = useState<string>('');
+
+  // Dogroup: modal con acciones (Generar Diplomas / Diploma + Reporte)
+  const [dogroupModalOpen, setDogroupModalOpen] = useState(false);
+  const [dogroupTargetRow, setDogroupTargetRow] = useState<Row | null>(null);
+  const [dogroupContentLoading, setDogroupContentLoading] = useState(false);
+  const openDogroupModal = (row: Row) => { 
+    setDogroupTargetRow(null);
+    setDogroupModalOpen(true);
+    setDogroupContentLoading(true);
+    setTimeout(() => {
+      setDogroupTargetRow(row);
+      setDogroupContentLoading(false);
+    }, 80);
+  };
+  const closeDogroupModal = () => { setDogroupModalOpen(false); setDogroupTargetRow(null); setDogroupContentLoading(false); };
+
+  // Obtener opciones únicas para el modal fotográfico
+  const getUniqueTrainers = () => {
+    const trainersSet = new Set<string>();
+    Object.values(certificateRawMap).forEach((cert: any) => {
+      if (cert.trainer_fullname) trainersSet.add(cert.trainer_fullname);
+    });
+    return Array.from(trainersSet).filter(Boolean).sort();
+  };
+
+  const getCoursesForTrainer = (trainerName: string) => {
+    if (!trainerName) return [];
+    const coursesMap = new Map<string, { name: string; stps: string; duration: string }>();
+    Object.values(certificateRawMap).forEach((cert: any) => {
+      if (cert.trainer_fullname === trainerName) {
+        // Recopilar cursos de este capacitador
+        if (Array.isArray(cert.certificate_courses)) {
+          cert.certificate_courses.forEach((cc: any) => {
+            const name = cc.course?.name ?? cc.course_name ?? '';
+            const duration = cc.course?.duration ?? cc.duration ?? cert.course_duration ?? '';
+            const stps = cert.stps ?? cert._id ?? '';
+            if (name && !coursesMap.has(name)) {
+              coursesMap.set(name, { name, stps, duration });
+            }
+          });
+        } else if (cert.course_name || cert.course?.name) {
+          const name = cert.course_name ?? cert.course?.name ?? '';
+          const duration = cert.course_duration ?? cert.course?.duration ?? '';
+          const stps = cert.stps ?? cert._id ?? '';
+          if (name && !coursesMap.has(name)) {
+            coursesMap.set(name, { name, stps, duration });
+          }
+        }
+      }
+    });
+    return Array.from(coursesMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  };
+
+  const openPhotoReportModal = () => {
+    setPhotoReportModalOpen(true);
+  };
+
+  const closePhotoReportModal = () => {
+    setPhotoReportModalOpen(false);
+    setPhotoReportCourse('');
+    setPhotoReportTrainer('');
+    setPhotoReportStartDate('');
+    setPhotoReportEndDate('');
+    setPhotoReportFiles([]);
+    setPhotoReportStps('');
+    setPhotoReportDuration('');
+  };
+
+  const openReportModal = (row: Row | null) => {
+    if (!row || !row.id) return;
+    const raw = certificateRawMap[row.id];
+    let defaultCourse: string | null = null;
+    if (raw) {
+      const courseList = Array.isArray(raw.certificate_courses) && raw.certificate_courses.length > 0 ? raw.certificate_courses : [];
+      if (courseList.length === 1) {
+        const first = courseList[0];
+        const val = first.course?._id ?? first.course?.id ?? first.course_id ?? first.course_name ?? first.course?.name ?? null;
+        defaultCourse = val ? String(val) : null;
+      } else {
+        // multiple courses -> force explicit selection by leaving default null
+        defaultCourse = null;
+      }
+    }
+    setReportTargetCertificateId(row.id);
+    setReportSelectedCourse(defaultCourse);
+    setReportModalOpen(true);
+  };
+  const closeReportModal = () => { setReportModalOpen(false); setReportFiles([]); setReportSelectedCourse(null); setReportTargetCertificateId(null); }; 
+
+  async function pdfMakeGetBuffer(docDef: any): Promise<Uint8Array> {
+    return new Promise((resolve, reject) => {
+      try {
+        pdfMake.createPdf(docDef).getBuffer((buffer: any) => resolve(buffer));
+      } catch (e) { reject(e); }
+    });
+  }
+
+  // Convertir archivo a base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Generar reporte fotográfico con imágenes locales
+  const handleGeneratePhotoReport = async () => {
+    if (!photoReportCourse || !photoReportTrainer || !photoReportStartDate || !photoReportEndDate) {
+      showNotification({ title: 'Atención', message: 'Completa todos los campos requeridos', color: 'yellow' });
+      return;
+    }
+    if (!photoReportFiles || photoReportFiles.length === 0) {
+      showNotification({ title: 'Atención', message: 'Selecciona al menos una foto', color: 'yellow' });
+      return;
+    }
+
+    setPhotoReportGenerating(true);
+    try {
+      // Convertir archivos a base64 data URLs
+      const imageDataUrls: string[] = [];
+      for (const file of photoReportFiles) {
+        const dataUrl = await fileToBase64(file);
+        imageDataUrls.push(dataUrl);
+      }
+
+      // Usar la función dedicada para generar reporte fotográfico
+      const reportPdfBytes = await generatePhotoReportFromTemplate(
+        photoReportCourse,
+        photoReportTrainer,
+        photoReportStartDate,
+        photoReportEndDate,
+        imageDataUrls,
+        photoReportStps,
+        photoReportDuration,
+        'Reporte.pdf'
+      );
+
+      // Descargar PDF
+      const { saveAs } = await import('file-saver');
+      const arrBuf = reportPdfBytes instanceof Uint8Array ? reportPdfBytes.buffer.slice(reportPdfBytes.byteOffset, reportPdfBytes.byteOffset + reportPdfBytes.byteLength) : reportPdfBytes as any;
+      const blob = new Blob([arrBuf], { type: 'application/pdf' });
+      saveAs(blob, `Reporte_Fotografico_${photoReportCourse.replace(/\s+/g, '_')}.pdf`);
+      
+      showNotification({ title: 'Generado', message: 'Reporte fotográfico descargado', color: 'green' });
+      closePhotoReportModal();
+    } catch (err) {
+      console.error('Error generando reporte fotográfico:', err);
+      showNotification({ title: 'Error', message: 'No se pudo generar el reporte fotográfico', color: 'red' });
+    } finally {
+      setPhotoReportGenerating(false);
+    }
+  };
+
+  async function generateDogroupForRow(row: Row | null, includeReport: boolean) {
+    if (!row || !row.id) { showNotification({ title: 'Atención', message: 'No se ha seleccionado una constancia', color: 'yellow' }); return; }
+    setDogroupProcessing(true);
+    try {
+      const res = await BasicPetition<any>({ endpoint: '/certificate', method: 'GET', params: { id: row.id }, showNotifications: false });
+      let item = res ?? null;
+      if (Array.isArray(res)) {
+        if (res.length === 0) item = null;
+        else item = res.find((x: any) => String(x._id ?? x.id) === String(row.id)) ?? res[0];
+      }
+      if (!item) { showNotification({ title: 'Error', message: 'No se encontró la constancia', color: 'red' }); return; }
+
+      // const firstCursante = Array.isArray(item.xlsx_object?.cursantes) && item.xlsx_object.cursantes.length > 0 ? item.xlsx_object.cursantes[0] : null;
+
+      // Generar diplomas usando el template DiplomaDoGroup
+      const certificateData: DC3CertificateData = {
+        id: item._id ?? item.id ?? row.id,
+        company_name: item.company_name ?? '',
+        rfc: item.user_rfc ?? undefined,
+        company_rfc: item.company_rfc ?? undefined,
+        course_name: item.course_name ?? item.course?.name ?? '',
+        course_duration: item.course_duration ?? item.course?.duration ?? '',
+        course_period: item.course_period ?? '',
+        trainer_fullname: item.trainer_fullname ?? '',
+        stps: item.stps ?? item._id ?? '',
+        legal_representative: item.legal_representative ?? '',
+        workers_representative: item.workers_representative ?? '',
+        area_tematica: item.xlsx_object?.area_tematica ?? item.area_tematica ?? '6000 Seguridad',
+        tipo_firma: item.xlsx_object?.tipo_firma ?? undefined,
+        certificate_courses: item.certificate_courses ?? undefined,
+        sign: item.sign ?? undefined,
+        course_id: item.course_id ?? item.course?._id ?? item.course?.id ?? undefined,
+        xlsx_object: item.xlsx_object ?? undefined,
+      } as any;
+
+      const rawCursantes = Array.isArray(item.xlsx_object?.cursantes) ? item.xlsx_object.cursantes : [];
+
+      // Si hay múltiples certificate_courses: generar un diploma por curso
+      const courseEntries = Array.isArray(item.certificate_courses) && item.certificate_courses.length > 0 ? item.certificate_courses : [{ course: { name: item.course_name ?? '' }, start: item.start ?? '', end: item.end ?? '', course_name: item.course_name ?? item.course?.name ?? '', course_id: item.course_id ?? item.course?._id ?? item.course?.id ?? undefined, duration: item.course_duration ?? item.course?.duration ?? '' }];
+
+      const diplomaFiles: Array<{ name: string; bytes: Uint8Array }> = [];
+
+      for (const ce of courseEntries) {
+        const courseName = ce?.course?.name ?? ce?.course_name ?? '';
+        const courseDuration = ce?.course?.duration ?? ce?.duration ?? '';
+        const start = ce?.start ?? '';
+        const end = ce?.end ?? '';
+        const perCert = { ...certificateData, course_name: courseName, course_duration: courseDuration, course_period: (start || end) ? `${start}${start && end ? ' / ' : ''}${end}` : certificateData.course_period, course_id: ce?.course_id ?? ce?.course?._id ?? certificateData.course_id } as any;
+
+        // Determinar cursantes relevantes para este curso
+        const usersForCourse: Array<DC3User> = [];
+        for (const c of rawCursantes) {
+          const cursoInteres = c.curso_interes ?? c.cursoInteres ?? '';
+          if (Array.isArray(item.certificate_courses) && item.certificate_courses.length > 0) {
+            if (cursoInteres) {
+              // solo si coincide
+              if (String(cursoInteres).trim() === String(courseName).trim()) {
+                usersForCourse.push({ nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '', curp: c.curp ?? '', puesto_trabajo: c.puesto_trabajo ?? c.puestoTrabajo ?? c.puesto ?? '', ocupacion_especifica: c.ocupacion_especifica ?? c.ocupacionEspecifica ?? c.ocupacion ?? '' });
+              }
+            } else {
+              // sin curso_interes => contribuir a todos los cursos
+              usersForCourse.push({ nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '', curp: c.curp ?? '', puesto_trabajo: c.puesto_trabajo ?? c.puestoTrabajo ?? c.puesto ?? '', ocupacion_especifica: c.ocupacion_especifica ?? c.ocupacionEspecifica ?? c.ocupacion ?? '' });
+            }
+          } else {
+            usersForCourse.push({ nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '', curp: c.curp ?? '', puesto_trabajo: c.puesto_trabajo ?? c.puestoTrabajo ?? c.puesto ?? '', ocupacion_especifica: c.ocupacion_especifica ?? c.ocupacionEspecifica ?? c.ocupacion ?? '' });
+          }
+        }
+
+        if (usersForCourse.length === 0) continue;
+
+        const files = await generateDiplomasDoGroupFromTemplate(perCert, usersForCourse);
+        for (const f of files) diplomaFiles.push(f);
+      }
+
+      const [{ default: JSZip }, { saveAs }] = await Promise.all([import('jszip'), import('file-saver')]);
+
+      if (!includeReport) {
+        if (diplomaFiles.length === 1) {
+          const blob = new Blob([new Uint8Array(diplomaFiles[0].bytes)], { type: 'application/pdf' });
+          saveAs(blob, diplomaFiles[0].name);
+        } else {
+          const zip = new JSZip();
+          for (const f of diplomaFiles) zip.file(f.name, f.bytes);
+          const content = await zip.generateAsync({ type: 'blob' });
+          saveAs(content, `Diplomas_${item._id}.zip`);
+        }
+        showNotification({ title: 'Generado', message: 'Diplomas generados', color: 'green' });
+        return;
+      }
+
+      // Si incluye reporte: generar PDF de reporte y agrupar en ZIP
+      const rowsTable = (Array.isArray(item.xlsx_object?.cursantes) ? item.xlsx_object.cursantes : []).map((c: any, idx: number) => ([String(idx + 1), c.nombre ?? '', c.curp ?? '', c.puesto_trabajo ?? '']));
+      const reportDoc: any = {
+        pageSize: 'A4',
+        content: [
+          { text: `Reporte - ${item.company_name ?? ''} - ${item.course_name ?? ''}`, style: 'header' },
+          { text: '\n' },
+          {
+            table: {
+              headerRows: 1,
+              widths: ['auto', '*', 'auto', '*'],
+              body: [[{ text: '#', bold: true }, { text: 'Nombre', bold: true }, { text: 'CURP', bold: true }, { text: 'Puesto', bold: true }], ...rowsTable]
+            }
+          }
+        ],
+        styles: { header: { fontSize: 14, bold: true } }
+      };
+
+      const zip2 = new JSZip();
+      for (const f of diplomaFiles) zip2.file(f.name, f.bytes);
+
+      try {
+        // Generar PDF de la tabla con pdfMake
+        const reportBuf = await pdfMakeGetBuffer(reportDoc);
+        let reportPdfBytes: Uint8Array;
+        try {
+          // Intentar usar la plantilla y superponer imágenes y encabezados
+          reportPdfBytes = await generateReportFromTemplate(certificateData, reportBuf, 'Reporte.pdf');
+        } catch (e) {
+          // Si falla el template, usar el buffer generado por pdfMake
+          reportPdfBytes = reportBuf instanceof Uint8Array ? reportBuf : new Uint8Array(reportBuf as any);
+        }
+
+        zip2.file(`Reporte_${item._id}.pdf`, reportPdfBytes);
+        const content2 = await zip2.generateAsync({ type: 'blob' });
+        saveAs(content2, `Diploma_Reporte_${item._id}.zip`);
+        showNotification({ title: 'Generado', message: 'Diploma y reporte descargados', color: 'green' });
+      } catch (e) {
+        // Fallback seguro: generar solo con pdfMake si algo falla
+        const reportBuf2 = await pdfMakeGetBuffer(reportDoc);
+        zip2.file(`Reporte_${item._id}.pdf`, reportBuf2);
+        const content2 = await zip2.generateAsync({ type: 'blob' });
+        saveAs(content2, `Diploma_Reporte_${item._id}.zip`);
+        showNotification({ title: 'Generado', message: 'Diploma y reporte descargados (sin plantilla)', color: 'yellow' });
+      }
+
+    } catch (e) {
+      showNotification({ title: 'Error', message: 'No se pudo generar el(s) documento(s)', color: 'red' });
+    } finally {
+      setDogroupProcessing(false);
+    }
+  }
+
+  // Generar solo el reporte (descarga directa)
+  async function generateReportForRow(row: Row | null) {
+    if (!row || !row.id) { showNotification({ title: 'Atención', message: 'No se ha seleccionado una constancia', color: 'yellow' }); return; }
+    setDogroupReportGenerating(true);
+    try {
+      const res = await BasicPetition<any>({ endpoint: '/certificate', method: 'GET', params: { id: row.id }, showNotifications: false });
+      let item = res ?? null;
+      if (Array.isArray(res)) {
+        if (res.length === 0) item = null;
+        else item = res.find((x: any) => String(x._id ?? x.id) === String(row.id)) ?? res[0];
+      }
+      if (!item) { showNotification({ title: 'Error', message: 'No se encontró la constancia', color: 'red' }); return; }
+
+      const certificateData: DC3CertificateData = {
+        id: item._id ?? item.id ?? row.id,
+        company_name: item.company_name ?? '',
+        rfc: item.user_rfc ?? undefined,
+        company_rfc: item.company_rfc ?? undefined,
+        course_name: item.course_name ?? item.course?.name ?? '',
+        course_duration: item.course_duration ?? item.course?.duration ?? '',
+        course_period: item.course_period ?? '',
+        trainer_fullname: item.trainer_fullname ?? '',
+        stps: item.stps ?? item._id ?? '',
+        legal_representative: item.legal_representative ?? '',
+        workers_representative: item.workers_representative ?? '',
+        area_tematica: item.xlsx_object?.area_tematica ?? item.area_tematica ?? '6000 Seguridad',
+        tipo_firma: item.xlsx_object?.tipo_firma ?? undefined,
+        certificate_courses: item.certificate_courses ?? undefined,
+        sign: item.sign ?? undefined,
+        course_id: item.course_id ?? item.course?._id ?? item.course?.id ?? undefined,
+        xlsx_object: item.xlsx_object ?? undefined,
+      } as any;
+
+      const rowsTable = (Array.isArray(item.xlsx_object?.cursantes) ? item.xlsx_object.cursantes : []).map((c: any, idx: number) => ([String(idx + 1), c.nombre ?? '', c.curp ?? '', c.puesto_trabajo ?? '']));
+      const reportDoc: any = {
+        pageSize: 'A4',
+        content: [
+          { text: `Reporte - ${item.company_name ?? ''} - ${item.course_name ?? ''}`, style: 'header' },
+          { text: '\n' },
+          {
+            table: {
+              headerRows: 1,
+              widths: ['auto', '*', 'auto', '*'],
+              body: [[{ text: '#', bold: true }, { text: 'Nombre', bold: true }, { text: 'CURP', bold: true }, { text: 'Puesto', bold: true }], ...rowsTable]
+            }
+          }
+        ],
+        styles: { header: { fontSize: 14, bold: true } }
+      };
+
+      // Generar buffer con pdfMake
+      const reportBuf = await pdfMakeGetBuffer(reportDoc);
+      let reportPdfBytes: Uint8Array;
+      try {
+        // Intentar usar la plantilla y overlay
+        reportPdfBytes = await generateReportFromTemplate(certificateData, reportBuf, 'Reporte.pdf');
+      } catch (e) {
+        reportPdfBytes = reportBuf instanceof Uint8Array ? reportBuf : new Uint8Array(reportBuf as any);
+      }
+
+      const { saveAs } = await import('file-saver');
+      // Asegurar ArrayBuffer compatible para Blob (evitar errores con SharedArrayBuffer)
+      const arrBuf = reportPdfBytes instanceof Uint8Array ? reportPdfBytes.buffer.slice(reportPdfBytes.byteOffset, reportPdfBytes.byteOffset + reportPdfBytes.byteLength) : reportPdfBytes as any;
+      const blob = new Blob([arrBuf], { type: 'application/pdf' });
+      saveAs(blob, `Reporte_${item._id ?? item.id ?? row.id}.pdf`);
+      showNotification({ title: 'Generado', message: 'Reporte descargado', color: 'green' });
+    } catch (e) {
+      showNotification({ title: 'Error', message: 'No se pudo generar el reporte', color: 'red' });
+    } finally {
+      setDogroupReportGenerating(false);
+    }
+  }
+
+  // (sendDogroupRequest removed — no usages found in this file)
+
+  const handleUploadReport = async () => {
+    if (!reportTargetCertificateId) return;
+    if (!reportFiles || reportFiles.length === 0) { showNotification({ title: 'Atención', message: 'Selecciona al menos una foto', color: 'yellow' }); return; }
+    // Si hay más de un curso asociado, requerir que se seleccione uno
+    const raw = reportTargetCertificateId ? certificateRawMap[reportTargetCertificateId] : null;
+    const courseList = Array.isArray(raw?.certificate_courses) ? raw.certificate_courses : [];
+    if (courseList.length > 1 && !reportSelectedCourse) { showNotification({ title: 'Atención', message: 'Selecciona el curso para el que subirás las fotos', color: 'yellow' }); return; }
+
+    setReportUploading(true);
+    try {
+      const uploadedIds: string[] = [];
+
+      const getCourseMatch = () => {
+        if (reportSelectedCourse) {
+          return Array.isArray(raw?.certificate_courses) ? raw.certificate_courses.find((cc: any) => {
+            const v = cc.course?._id ?? cc.course?.id ?? cc.course_id ?? cc.course_name ?? cc.course?.name ?? '';
+            return String(v) === String(reportSelectedCourse);
+          }) : null;
+        }
+        if (Array.isArray(raw?.certificate_courses) && raw.certificate_courses.length === 1) return raw.certificate_courses[0];
+        return null;
+      };
+
+      const matchedCourse = getCourseMatch();
+      const courseIdToUse = matchedCourse?.course?._id ?? matchedCourse?.course?.id ?? matchedCourse?.course_id ?? null;
+      const courseNameToUse = matchedCourse ? (matchedCourse?.course?.name ?? matchedCourse?.course_name ?? null) : null;
+
+      const sanitize = (s: any) => String(s ?? '').normalize('NFKD').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-]/g, '');
+      const buildPath = (courseName: string | null, trainerName: string | null, companyName: string | null) => {
+        const cPart = (String(courseName ?? '').replace(/\s+/g, '') || '').slice(0, 2).toUpperCase();
+        const tPart = (String(trainerName ?? '').replace(/\s+/g, '') || '').slice(0, 2).toUpperCase();
+        const comp = sanitize(companyName ?? '');
+        return `${cPart}${tPart}_${comp}`;
+      };
+
+      const path = buildPath(courseNameToUse ?? raw?.course_name ?? raw?.course?.name ?? '', raw?.trainer_fullname ?? '', raw?.company_name ?? '');
+
+      // Subir cada archivo en peticiones individuales (máx 6 ya controlado en el input)
+      for (const f of reportFiles) {
+        const fd = new FormData();
+        fd.append('file', f);
+        fd.append('certificate_id', reportTargetCertificateId as string);
+        if (courseIdToUse) fd.append('course_id', String(courseIdToUse));
+        else if (courseNameToUse) fd.append('course_name', String(courseNameToUse));
+        fd.append('path', path);
+
+        const headers: any = {};
+        const token = localStorage.getItem('mi_app_token');
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch(`${appConfig.BACKEND_URL}/google/upload`, { method: 'POST', body: fd, headers });
+        if (!res.ok) {
+          const text = await res.text().catch(() => null);
+          throw new Error(text || 'Upload failed');
+        }
+
+        // Intentar parsear JSON y extraer ID del archivo subido
+        let j: any = null;
+        try { j = await res.json(); } catch { j = null; }
+        const fileId = j?.id ?? j?._id ?? j?.fileId ?? j?.key ?? null;
+        if (!fileId) {
+          const txt = await res.text().catch(() => null);
+          // si no hay id, intentar tomar la respuesta como fallback
+          if (!txt) throw new Error('No se pudo obtener id del archivo subido');
+          uploadedIds.push(String(txt).slice(0, 100));
+        } else {
+          uploadedIds.push(String(fileId));
+        }
+      }
+
+      // Construir entrada de reporte y patch al certificado
+      const prevRaw = reportTargetCertificateId ? (certificateRawMap[reportTargetCertificateId] ?? {}) : {};
+      const prevXlsx = prevRaw?.xlsx_object ?? {};
+      const newReportEntry: any = {
+        curso_id: courseIdToUse ?? null,
+        archivos: uploadedIds,
+      };
+
+      const updatedXlsx = {
+        ...(prevXlsx ?? {}),
+        reporte: true,
+        reportes: Array.isArray(prevXlsx?.reportes) ? [...prevXlsx.reportes, newReportEntry] : [newReportEntry],
+      };
+
+      // Enviar PATCH para actualizar xlsx_object
+      try {
+        if (reportTargetCertificateId) {
+          await BasicPetition({ endpoint: `/certificate/${reportTargetCertificateId}`, method: 'PATCH', data: { xlsx_object: updatedXlsx }, showNotifications: false });
+        }
+      } catch (e) {
+        // Si falla el patch, avisar pero las imágenes ya subieron
+        showNotification({ title: 'Atención', message: 'Las fotos se subieron correctamente, pero no se pudo actualizar el reporte en la constancia.', color: 'yellow' });
+        closeReportModal();
+        return;
+      }
+
+      showNotification({ title: 'Subida completada', message: 'Fotos subidas y reporte solicitado correctamente', color: 'green' });
+      closeReportModal();
+    } catch (e: any) {
+      showNotification({ title: 'Error', message: String(e?.message || 'No se pudo subir las fotos').slice(0, 200), color: 'red' });
+    } finally {
+      setReportUploading(false);
+    }
+  } 
 
   async function fetchCertificates() {
     try {
@@ -503,7 +1005,7 @@ export function ConstanciasAdminPage() {
 
   // Función para recortar el espacio en blanco de una imagen
   async function trimImageWhitespace(dataUrl: string): Promise<string> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
@@ -679,14 +1181,10 @@ export function ConstanciasAdminPage() {
           ],
           [
             { text: "Curso", bold: true, border: [false, false, false, false] },
-            {
-              border: [true, true, true, true],
-              fillColor: '#549afbff',
-              stack: [
-                { text: courseName || '', bold: true, fontSize: 10, margin: [8, 6, 8, 2] },
-                { text: coursePeriod || '', fontSize: 9, margin: [8, 2, 8, 6] },
-              ],
-            },
+             { text: courseName || '', bold: true, fontSize: 10 },
+          ],[
+             { text: "Periodo", bold: true, border: [false, false, false, false] },
+             { text: coursePeriod || '', bold: true, fontSize: 10 },
           ],
           [
             { text: "Agente Capacitador", bold: true, border: [false, false, false, false] },
@@ -742,78 +1240,69 @@ export function ConstanciasAdminPage() {
             margin: [0, 0, 0, 12],
           },
           {
-            table: {
-              headerRows: 1,
-              widths: [30, "*", 150, 120, 80],
-              body: tableBody,
-            },
-            layout: {
-              fillColor: (rowIndex: number) => (rowIndex === 0 ? "#CCCCCC" : null),
-            },
-          },
-          { text: "\n\n" },
-          {
-            columns: [
+            stack: [
               {
-                width: "50%",
-                stack: [
-                  { text: "Instructor", bold: true, alignment: "center" },
-                  { text: (raw.trainer_fullname ?? "").toString().toUpperCase(), alignment: "center" },
-                  { text: "\n" },
+                table: {
+                  headerRows: 1,
+                  widths: [30, "*", 150, 120, 80],
+                  body: tableBody,
+                },
+                layout: {
+                  fillColor: (rowIndex: number) => (rowIndex === 0 ? "#CCCCCC" : null),
+                },
+              },
+              {
+                columns: [
                   {
+                    width: "50%",
                     stack: [
-                      // Espacio para la firma
-                      { text: "\n", margin: [0, 0, 0, 30] },
-                      // Línea de firma
+                      { text: "Instructor", bold: true, alignment: "center" },
+                      { text: (raw.trainer_fullname ?? "").toString().toUpperCase(), alignment: "center" },
+                      { text: "", margin: [0, 35, 0, 0] },
                       {
                         canvas: [
                           { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
                         ],
-                        margin: [0, 0, 0, 4],
+                        margin: [0, 6, 0, 4],
+                        alignment: "center",
+                      },
+                      { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
+                      ...(signatureDataUrl ? [
+                        {
+                          image: signatureDataUrl,
+                          width: 120,
+                          height: 50,
+                          alignment: "center",
+                          relativePosition: { x: 0, y: -70 },
+                        },
+                      ] : []),
+                    ],
+                    alignment: "center",
+                  },
+                  {
+                    width: "50%",
+                    stack: [
+                      { text: "Capacitación/ Representante", bold: true, alignment: "center" },
+                      { text: (raw.legal_representative ?? "").toString().toUpperCase(), alignment: "center" },
+                      { text: "", margin: [0, 35, 0, 0] },
+                      {
+                        canvas: [
+                          { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
+                        ],
+                        margin: [0, 6, 0, 4],
                         alignment: "center",
                       },
                       { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
                     ],
-                  },
-                  // Imagen de firma superpuesta con posición relativa
-                  ...(signatureDataUrl ? [
-                    {
-                      image: signatureDataUrl,
-                      width: 120,
-                      height: 50,
-                      alignment: "center",
-                      relativePosition: { x: 0, y: -65 },
-                    },
-                  ] : []),
-                ],
-                alignment: "center",
-              },
-              {
-                width: "50%",
-                stack: [
-                  {
-                    text: "Capacitación/ Representante",
-                    bold: true,
                     alignment: "center",
                   },
-                  { text: (raw.legal_representative ?? "").toString().toUpperCase(), alignment: "center" },
-                  { text: "\n" },
-                  { text: "\n", margin: [0, 0, 0, 30] },
-                  {
-                    canvas: [
-                      { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
-                    ],
-                    margin: [0, 0, 0, 4],
-                    alignment: "center",
-                  },
-                  { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
                 ],
+                columnGap: 10,
                 alignment: "center",
+                margin: [0, 8, 0, 0],
               },
             ],
-            margin: [0, 28, 0, 0],
-            columnGap: 10,
-            alignment: "center",
+            unbreakable: true,
           },
         ];
 
@@ -1012,8 +1501,19 @@ export function ConstanciasAdminPage() {
 
   return (
     <Container size="lg" py="lg">
-      <Title order={2}>Constancias</Title>
-      <Text color="dimmed" mb="md">En esta sección podrás ver las listas enviadas por las empresas y el estado de sus constancias.</Text>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div>
+          <Title order={2}>Constancias</Title>
+          <Text color="dimmed">En esta sección podrás ver las listas enviadas por las empresas y el estado de sus constancias.</Text>
+        </div>
+        <Button
+          onClick={openPhotoReportModal}
+          style={{ backgroundColor: '#1976d2', color: 'white' }}
+        >
+          <FaCamera size={isMobile ? 20 : 16} style={{ marginRight: isMobile ? 0 : 8 }} />
+          {!isMobile && 'Reporte Fotográfico'}
+        </Button>
+      </div>
 
       <ResponsiveDataTable columns={columns} data={rows} initialPageSize={10} actions={(row) => (
         <Group gap={4} align="center">
@@ -1027,6 +1527,20 @@ export function ConstanciasAdminPage() {
           >
             Lista
           </Button>
+        
+                        <Button
+                            onClick={() => openDogroupModal(row)}
+                            className={`action-btn small-action-btn`}
+                            style={{
+                                backgroundColor: '#0e639c',
+                                color: 'white',
+                                transition: 'filter 120ms ease',
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(0.9)')}
+                            onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
+                        >
+                            Dogroup
+                        </Button>
           <Button
             size="xs"
             className="action-btn small-action-btn"
@@ -1330,6 +1844,268 @@ export function ConstanciasAdminPage() {
           </div>
         </div>
       </Modal>
+
+
+            <Modal opened={reportModalOpen} onClose={() => closeReportModal()} title="Llenar reporte" centered size="md">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>Sube las fotos para el reporte. Las fotos se asociarán a la constancia y aplican a todos los cursantes.</div>
+
+                    {(() => {
+                        const raw = reportTargetCertificateId ? certificateRawMap[reportTargetCertificateId] : null;
+                        const courseList = Array.isArray(raw?.certificate_courses) && raw.certificate_courses.length > 0 ? raw.certificate_courses : [];
+                        const courseOptions = courseList.map((cc: any, idx: number) => {
+                            const val = cc.course?._id ?? cc.course?.id ?? cc.course_id ?? cc.course_name ?? cc.course?.name ?? String(idx);
+                            const label = cc.course?.name ?? cc.course_name ?? val;
+                            return { value: String(val), label };
+                        });
+
+                        return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                {courseOptions.length > 1 ? (
+                                    <Select
+                                        label="Curso (opcional)"
+                                        placeholder="Selecciona el curso"
+                                        data={courseOptions}
+                                        value={reportSelectedCourse ?? ''}
+                                        onChange={(v) => setReportSelectedCourse(v || null)}
+                                    />
+                                ) : courseOptions.length === 1 ? (
+                                    <div style={{ fontSize: 13, color: '#333' }}>{`Curso: ${courseOptions[0].label}`}</div>
+                                ) : null}
+
+                            </div>
+                        );
+                    })()}
+
+                    <div>
+                        <input type="file" multiple accept="image/*" onChange={(e) => {
+                            const filesArr = e.target.files ? Array.from(e.target.files) : [];
+                            if (filesArr.length > 6) {
+                                showNotification({ title: 'Atención', message: 'Puedes subir máximo 6 fotos', color: 'yellow' });
+                                setReportFiles(filesArr.slice(0, 6));
+                            } else setReportFiles(filesArr);
+                        }} />
+                        <div style={{ fontSize: 12, color: '#666' }}>{reportFiles.length} archivo{reportFiles.length !== 1 ? 's' : ''} seleccionado{reportFiles.length !== 1 ? 's' : ''} (máx 6)</div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                        <Button className="secondary" onClick={() => closeReportModal()}>Cancelar</Button>
+                        <Button onClick={async () => await handleUploadReport()} loading={reportUploading} style={{ background: 'var(--olive-green)', color: 'white' }}>Subir fotos</Button>
+                    </div>
+
+                </div>
+            </Modal>
+
+            <Modal
+                opened={dogroupModalOpen}
+                onClose={() => closeDogroupModal()}
+                title="Generar documentos DOGroup"
+                centered
+                size="md"
+            >
+                {dogroupContentLoading ? (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '40px' }}>
+                        <div>Cargando...</div>
+                    </div>
+                ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>Elige la acción a realizar para esta constancia:</div>
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                        <Button
+                            onClick={async () => {
+                                if (!dogroupTargetRow) return;
+                                setDogroupProcessing(true);
+                                try {
+                                    await generateDogroupForRow(dogroupTargetRow, false);
+                                } finally {
+                                    setDogroupProcessing(false);
+                                    closeDogroupModal();
+                                }
+                            }}
+                            loading={dogroupProcessing}
+                            disabled={dogroupProcessing || !dogroupTargetRow}
+                        >
+                            Generar Diplomas
+                        </Button>
+                        {(() => {
+                            const raw = dogroupTargetRow ? certificateRawMap[dogroupTargetRow.id ?? ''] : null;
+                            const hasXlsx = Boolean(raw?.xlsx_object);
+                            const reporteFlag = Boolean(raw?.xlsx_object?.reporte);
+                            // Considerar que la empresa ya solicitó/requiere revisión si existe la propiedad
+                            // `reporte` (aunque sea false) o existe el arreglo `reportes` con entradas
+                            const hasReportRequests = Boolean(raw?.xlsx_object && (('reporte' in raw.xlsx_object) || (Array.isArray(raw.xlsx_object.reportes) && raw.xlsx_object.reportes.length > 0)));
+                            
+                            // No mostrar botones de reporte si hay más de un curso
+                            const hasMultipleCourses = Array.isArray(raw?.certificate_courses) && raw.certificate_courses.length > 1;
+                            if (hasMultipleCourses) {
+                                return null;
+                            }
+
+                            // Si el flag de reporte ya está activado => permitir Generar Reporte
+                            if (reporteFlag) {
+                                return (
+                                    <Button
+                                        onClick={async () => {
+                                            if (!dogroupTargetRow) return;
+                                            setDogroupReportGenerating(true);
+                                            try {
+                                                await generateReportForRow(dogroupTargetRow);
+                                            } finally {
+                                                setDogroupReportGenerating(false);
+                                                closeDogroupModal();
+                                            }
+                                        }}
+                                        loading={dogroupReportGenerating}
+                                        disabled={dogroupReportGenerating || !dogroupTargetRow || !hasXlsx}
+                                    >
+                                        Generar Reporte
+                                    </Button>
+                                );
+                            }
+
+                            // Solo permitir "Revisar reporte" si existe la propiedad `reporte` o solicitudes en `reportes`
+                            const canReview = Boolean(hasReportRequests);
+                            const disabled = !dogroupTargetRow || !hasXlsx || !canReview;
+                            const tooltipLabel = !hasXlsx ? 'No hay XLSX asociado; la empresa no ha solicitado el reporte' : (!canReview ? 'La empresa no ha solicitado el reporte' : 'Revisar reporte');
+
+                            if (disabled) {
+                                return (
+                                    <Tooltip label={tooltipLabel} position="top" withArrow disabled={!disabled}>
+                                        <div>
+                                            <Button disabled>{'Revisar reporte'}</Button>
+                                        </div>
+                                    </Tooltip>
+                                );
+                            }
+
+                            return (
+                                <Button
+                                    onClick={() => {
+                                        if (!dogroupTargetRow) return;
+                                        setReportTargetCertificateId(dogroupTargetRow.id ?? null);
+                                        openReportModal(dogroupTargetRow);
+                                        closeDogroupModal();
+                                    }}
+                                    disabled={!dogroupTargetRow}
+                                >
+                                    Revisar reporte
+                                </Button>
+                            );
+                        })()}
+                    </div>
+                    
+                </div>
+                )}
+            </Modal>
+
+      <Modal
+        opened={photoReportModalOpen}
+        onClose={closePhotoReportModal}
+        title="Generar Reporte Fotográfico"
+        size="md"
+        centered
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Select
+            label="Capacitador"
+            placeholder="Selecciona un capacitador"
+            data={getUniqueTrainers()}
+            value={photoReportTrainer}
+            onChange={(value) => {
+              setPhotoReportTrainer(value ?? '');
+              // Limpiar curso, STPS y duración cuando cambia capacitador
+              setPhotoReportCourse('');
+              setPhotoReportStps('');
+              setPhotoReportDuration('');
+            }}
+            searchable
+            required
+            clearable
+          />
+
+          <Select
+            label="Curso"
+            placeholder={photoReportTrainer ? "Selecciona un curso" : "Primero selecciona un capacitador"}
+            data={photoReportTrainer ? getCoursesForTrainer(photoReportTrainer).map(c => c.name) : []}
+            value={photoReportCourse}
+            onChange={(value) => {
+              setPhotoReportCourse(value ?? '');
+              // Auto-completar STPS y duración cuando se selecciona un curso
+              if (value) {
+                const courses = getCoursesForTrainer(photoReportTrainer);
+                const selectedCourse = courses.find(c => c.name === value);
+                if (selectedCourse) {
+                  setPhotoReportStps(selectedCourse.stps);
+                  setPhotoReportDuration(selectedCourse.duration);
+                }
+              } else {
+                setPhotoReportStps('');
+                setPhotoReportDuration('');
+              }
+            }}
+            searchable
+            required
+            clearable
+            disabled={!photoReportTrainer}
+          />
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <TextInput
+              label="Fecha Inicio"
+              type="date"
+              value={photoReportStartDate}
+              onChange={(e) => setPhotoReportStartDate(e.currentTarget.value)}
+              required
+            />
+            <TextInput
+              label="Fecha Fin"
+              type="date"
+              value={photoReportEndDate}
+              onChange={(e) => setPhotoReportEndDate(e.currentTarget.value)}
+              required
+            />
+          </div>
+
+          <div>
+            <Text size="sm" weight={500} mb={8}>Fotos (máximo 6)</Text>
+            <FileInput
+              placeholder="Selecciona hasta 6 fotos"
+              multiple
+              accept="image/*"
+              value={photoReportFiles}
+              onChange={(files) => {
+                const filesArray = Array.isArray(files) ? files : files ? [files] : [];
+                if (filesArray.length > 6) {
+                  showNotification({ title: 'Atención', message: 'Solo puedes seleccionar hasta 6 fotos', color: 'yellow' });
+                  setPhotoReportFiles(filesArray.slice(0, 6));
+                } else {
+                  setPhotoReportFiles(filesArray);
+                }
+              }}
+            />
+            {photoReportFiles.length > 0 && (
+              <Text size="xs" color="dimmed" mt={4}>
+                {photoReportFiles.length} foto(s) seleccionada(s)
+              </Text>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 8 }}>
+            <Button variant="outline" onClick={closePhotoReportModal} disabled={photoReportGenerating}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleGeneratePhotoReport}
+              loading={photoReportGenerating}
+              disabled={photoReportGenerating || !photoReportCourse || !photoReportTrainer || !photoReportStartDate || !photoReportEndDate || photoReportFiles.length === 0}
+              style={{ backgroundColor: '#1976d2' }}
+            >
+              Generar Reporte
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       <ConfirmModal
         opened={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}

@@ -9,15 +9,16 @@ import {
     TextInput,
     FileInput,
     Select,
-    MultiSelect
+    MultiSelect,
+    Tooltip
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { showNotification } from '@mantine/notifications';
 import { BasicPetition } from '../core/petition';
 import { ResponsiveDataTable, type Column } from "../components/ResponsiveDataTable";
 import { ConfirmModal } from '../components/ConfirmModal';
-import { generateAndDownloadZipDC3, type DC3User, type DC3CertificateData } from '../components/createPDF';
-import { generateAndDownloadZipDC3FromTemplate } from '../components/createPDFFromTemplate';
+import { type DC3User, type DC3CertificateData } from '../components/createPDF';
+import { generateAndDownloadZipDC3FromTemplate, generateDiplomasDoGroupFromTemplate, generateReportFromTemplate } from '../components/createPDFFromTemplate';
 import { FaFileUpload, FaPlus } from "react-icons/fa";
 import pdfMake from "pdfmake/build/pdfmake";
 import appConfig from '../core/constants/appConfig';
@@ -38,6 +39,7 @@ type Row = {
 export function ConstanciasEmpresaPage() {
     const [opened, setOpened] = useState(false);
     const [rows, setRows] = useState<Row[]>([]);
+    const [certificateRawMap, setCertificateRawMap] = useState<Record<string, any>>({});
 
     const form = useForm({
         initialValues: {
@@ -144,7 +146,6 @@ export function ConstanciasEmpresaPage() {
         try {
             // crear la constancia: primero enviar una copia sanitizada (sin cursos)
             const sanitized = JSON.parse(JSON.stringify(payload));
-            const preserved = JSON.parse(JSON.stringify(payload));
 
             const createdAny: any = await BasicPetition({ endpoint: '/certificate', method: 'POST', data: sanitized, showNotifications: false });
             const certId = createdAny?._id ?? createdAny?.id ?? (Array.isArray(createdAny) && createdAny.length > 0 ? (createdAny[0]?._id ?? createdAny[0]?.id) : null);
@@ -202,7 +203,6 @@ export function ConstanciasEmpresaPage() {
         setGroupSending(true);
         try {
             // preparar payload: sanitized (sin cursos) y preserved (con cursos) para bulk
-            const preserved = JSON.parse(JSON.stringify(payload));
             const sanitized = JSON.parse(JSON.stringify(payload));
             try {
                 const cursantes = sanitized.xlsx_object?.cursantes ?? [];
@@ -445,8 +445,11 @@ export function ConstanciasEmpresaPage() {
 
             const list = await BasicPetition<any[]>({ endpoint: '/certificate', method: 'GET', params: { certificate_user_id: idToUse }, showNotifications: false });
             if (!Array.isArray(list)) return;
+            // Guardar datos completos en el map
+            const rawMap: Record<string, any> = {};
             // Por cada certificado, obtener asociaciones y construir courses array
             const rowsWithCourses: Row[] = await Promise.all(list.map(async (it) => {
+                rawMap[it._id] = it;
                 const certId = it._id ?? it.id ?? null;
                 let associations: any[] = [];
                 try {
@@ -490,6 +493,7 @@ export function ConstanciasEmpresaPage() {
                     cursantes: cursantesArr,
                 } as Row;
             }));
+            setCertificateRawMap(rawMap);
             setRows(rowsWithCourses);
         } catch (err) {
             setRows([]);
@@ -545,6 +549,281 @@ export function ConstanciasEmpresaPage() {
         }
     }
 
+
+    // Dogroup: modal con acciones (Generar Diplomas / Diploma + Reporte)
+    // Loading independientes por botón
+    const [dogroupGenerating, setDogroupGenerating] = useState(false);
+    const [dogroupReportGenerating, setDogroupReportGenerating] = useState(false);
+    const [dogroupRequesting, setDogroupRequesting] = useState(false);
+    const [dogroupModalOpen, setDogroupModalOpen] = useState(false);
+    const [dogroupTargetRow, setDogroupTargetRow] = useState<Row | null>(null);
+    const [dogroupTargetRaw, setDogroupTargetRaw] = useState<any | null>(null);
+    const [dogroupContentLoading, setDogroupContentLoading] = useState(false);
+    const openDogroupModal = (row: Row) => {
+        setDogroupTargetRow(null);
+        setDogroupModalOpen(true);
+        setDogroupContentLoading(true);
+        setTimeout(() => {
+            const item = row.id ? certificateRawMap[row.id] : null;
+            setDogroupTargetRaw(item ?? null);
+            setDogroupTargetRow(row);
+            setDogroupContentLoading(false);
+        }, 300);
+    };
+    const closeDogroupModal = () => { setDogroupModalOpen(false); setDogroupTargetRow(null); setDogroupTargetRaw(null); setDogroupContentLoading(false); };
+
+    async function pdfMakeGetBuffer(docDef: any): Promise<Uint8Array> {
+        return new Promise((resolve, reject) => {
+            try {
+                pdfMake.createPdf(docDef).getBuffer((buffer: any) => resolve(buffer));
+            } catch (e) { reject(e); }
+        });
+    }
+
+    // (Se removió la heurística `resolveCoordText` porque no se estaba usando)
+
+    async function generateDogroupForRow(row: Row, includeReport: boolean) {
+        if (!row.id) return;
+        setDogroupGenerating(true);
+        try {
+            const res = await BasicPetition<any>({ endpoint: '/certificate', method: 'GET', params: { id: row.id }, showNotifications: false });
+            let item = res ?? null;
+            if (Array.isArray(res)) {
+                if (res.length === 0) item = null;
+                else item = res.find((x: any) => String(x._id ?? x.id) === String(row.id)) ?? res[0];
+            }
+            if (!item) { showNotification({ title: 'Error', message: 'No se encontró la constancia', color: 'red' }); return; }
+
+            // Generar diplomas usando template DiplomaDoGroup
+            const certificateData: DC3CertificateData = {
+                id: item._id ?? item.id ?? row.id,
+                company_name: item.company_name ?? '',
+                rfc: item.user_rfc ?? undefined,
+                company_rfc: item.company_rfc ?? undefined,
+                course_name: item.course_name ?? item.course?.name ?? '',
+                course_duration: item.course_duration ?? item.course?.duration ?? '',
+                course_period: item.course_period ?? '',
+                trainer_fullname: item.trainer_fullname ?? '',
+                stps: item.stps ?? item._id ?? '',
+                legal_representative: item.legal_representative ?? '',
+                workers_representative: item.workers_representative ?? '',
+                area_tematica: item.xlsx_object?.area_tematica ?? item.area_tematica ?? '6000 Seguridad',
+                tipo_firma: item.xlsx_object?.tipo_firma ?? undefined,
+                certificate_courses: item.certificate_courses ?? undefined,
+                sign: item.sign ?? undefined,
+                course_id: item.course_id ?? item.course?._id ?? item.course?.id ?? undefined,
+                xlsx_object: item.xlsx_object ?? undefined,
+            } as any;
+
+            const rawCursantes = Array.isArray(item.xlsx_object?.cursantes) ? item.xlsx_object.cursantes : [];
+
+            const courseEntries = Array.isArray(item.certificate_courses) && item.certificate_courses.length > 0 ? item.certificate_courses : [{ course: { name: item.course_name ?? '' }, start: item.start ?? '', end: item.end ?? '', course_name: item.course_name ?? item.course?.name ?? '', duration: item.course_duration ?? item.course?.duration ?? '' }];
+
+            const diplomaFiles: Array<{ name: string; bytes: Uint8Array }> = [];
+            for (const ce of courseEntries) {
+                const courseName = ce?.course?.name ?? ce?.course_name ?? '';
+                const courseDuration = ce?.course?.duration ?? ce?.duration ?? '';
+                const start = ce?.start ?? '';
+                const end = ce?.end ?? '';
+                const perCert = { ...certificateData, course_name: courseName, course_duration: courseDuration, course_period: (start || end) ? `${start}${start && end ? ' / ' : ''}${end}` : certificateData.course_period, course_id: ce?.course_id ?? ce?.course?._id ?? certificateData.course_id } as any;
+
+                const usersForCourse: Array<DC3User> = [];
+                for (const c of rawCursantes) {
+                    const cursoInteres = c.curso_interes ?? c.cursoInteres ?? '';
+                    if (Array.isArray(item.certificate_courses) && item.certificate_courses.length > 0) {
+                        if (cursoInteres) {
+                            if (String(cursoInteres).trim() === String(courseName).trim()) {
+                                usersForCourse.push({ nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '', curp: c.curp ?? '', puesto_trabajo: c.puesto_trabajo ?? c.puestoTrabajo ?? c.puesto ?? '', ocupacion_especifica: c.ocupacion_especifica ?? c.ocupacionEspecifica ?? c.ocupacion ?? '' });
+                            }
+                        } else {
+                            usersForCourse.push({ nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '', curp: c.curp ?? '', puesto_trabajo: c.puesto_trabajo ?? c.puestoTrabajo ?? c.puesto ?? '', ocupacion_especifica: c.ocupacion_especifica ?? c.ocupacionEspecifica ?? c.ocupacion ?? '' });
+                        }
+                    } else {
+                        usersForCourse.push({ nombre: c.nombre ?? c.nombre_completo ?? c.nombreCompleto ?? '', curp: c.curp ?? '', puesto_trabajo: c.puesto_trabajo ?? c.puestoTrabajo ?? c.puesto ?? '', ocupacion_especifica: c.ocupacion_especifica ?? c.ocupacionEspecifica ?? c.ocupacion ?? '' });
+                    }
+                }
+
+                if (usersForCourse.length === 0) continue;
+
+                const files = await generateDiplomasDoGroupFromTemplate(perCert, usersForCourse);
+                for (const f of files) diplomaFiles.push(f);
+            }
+
+            const [{ default: JSZip }, { saveAs }] = await Promise.all([import('jszip'), import('file-saver')]);
+
+            if (!includeReport) {
+                if (diplomaFiles.length === 1) {
+                    const blob = new Blob([new Uint8Array(diplomaFiles[0].bytes)], { type: 'application/pdf' });
+                    saveAs(blob, diplomaFiles[0].name);
+                } else {
+                    const zip = new JSZip();
+                    for (const f of diplomaFiles) zip.file(f.name, f.bytes);
+                    const content = await zip.generateAsync({ type: 'blob' });
+                    saveAs(content, `Diplomas_${item._id}.zip`);
+                }
+                showNotification({ title: 'Generado', message: 'Diplomas generados', color: 'green' });
+                return;
+            }
+
+            // Si incluye reporte: generar PDF de reporte y agrupar en ZIP
+            const rowsTable = (Array.isArray(item.xlsx_object?.cursantes) ? item.xlsx_object.cursantes : []).map((c: any, idx: number) => ([String(idx + 1), c.nombre ?? '', c.curp ?? '', c.puesto_trabajo ?? '']));
+            const reportDoc: any = {
+                pageSize: 'A4',
+                content: [
+                    { text: `Reporte - ${item.company_name ?? ''} - ${item.course_name ?? ''}`, style: 'header' },
+                    { text: '\n' },
+                    {
+                        table: {
+                            headerRows: 1,
+                            widths: ['auto', '*', 'auto', '*'],
+                            body: [[{ text: '#', bold: true }, { text: 'Nombre', bold: true }, { text: 'CURP', bold: true }, { text: 'Puesto', bold: true }], ...rowsTable]
+                        }
+                    }
+                ],
+                styles: { header: { fontSize: 14, bold: true } }
+            };
+
+            const zip2 = new JSZip();
+            for (const f of diplomaFiles) zip2.file(f.name, f.bytes);
+
+            try {
+                // Generar PDF de la tabla con pdfMake
+                const reportBuf = await pdfMakeGetBuffer(reportDoc);
+                let reportPdfBytes: Uint8Array;
+                try {
+                    // Intentar usar la plantilla y superponer imágenes y encabezados
+                    reportPdfBytes = await generateReportFromTemplate(certificateData, reportBuf, 'Reporte.pdf');
+                } catch (e) {
+                    // Si falla el template, usar el buffer generado por pdfMake
+                    reportPdfBytes = reportBuf instanceof Uint8Array ? reportBuf : new Uint8Array(reportBuf as any);
+                }
+
+                zip2.file(`Reporte_${item._id}.pdf`, reportPdfBytes);
+                const content2 = await zip2.generateAsync({ type: 'blob' });
+                saveAs(content2, `Diploma_Reporte_${item._id}.zip`);
+                showNotification({ title: 'Generado', message: 'Diploma y reporte descargados', color: 'green' });
+            } catch (e) {
+                // Fallback seguro: generar solo con pdfMake si algo falla
+                const reportBuf2 = await pdfMakeGetBuffer(reportDoc);
+                zip2.file(`Reporte_${item._id}.pdf`, reportBuf2);
+                const content2 = await zip2.generateAsync({ type: 'blob' });
+                saveAs(content2, `Diploma_Reporte_${item._id}.zip`);
+                showNotification({ title: 'Generado', message: 'Diploma y reporte descargados (sin plantilla)', color: 'yellow' });
+            }
+
+        } catch (e) {
+            showNotification({ title: 'Error', message: 'No se pudo generar el(s) documento(s)', color: 'red' });
+        } finally {
+            setDogroupGenerating(false);
+        }
+    }
+
+    // Enviar solicitud al backend para generar Diploma + Reporte y esperar confirmación del admin
+    async function sendDogroupRequest(row: Row) {
+        if (!row?.id) return;
+        try {
+            // obtener el xlsx_object actual desde el state cargado en el modal o el servidor
+            let current = dogroupTargetRaw?.xlsx_object ?? {};
+
+            // clonar y asegurarse de tener un array 'reportes'
+            const newXlsx: any = JSON.parse(JSON.stringify(current ?? {}));
+            // añadir solicitud con identificador de usuario si está disponible
+            newXlsx.reporte = false;
+
+            const patchPayload = { xlsx_object: newXlsx };
+
+            // PATCH /certificate/:id con el nuevo xlsx_object
+            await BasicPetition<any>({ endpoint: `/certificate/${row.id}`, method: 'PATCH', data: patchPayload, showNotifications: false });
+
+            showNotification({ title: 'Solicitud enviada', message: 'Se ha solicitado la generación del reporte. El administrador será notificado.', color: 'green' });
+
+            // refrescar lista y estado del modal
+            try { await fetchCertificates(); } catch (e) { /* ignore */ }
+            setDogroupTargetRaw((prev: any) => ({ ...(prev ?? {}), xlsx_object: newXlsx }));
+            return { ok: true };
+        } catch (err) {
+            showNotification({ title: 'Error', message: 'No se pudo enviar la solicitud. Intenta de nuevo.', color: 'red' });
+            throw err;
+        }
+    }
+
+    // Generar reporte a partir del xlsx_object (descarga PDF)
+    async function generateReportForRow(row: Row) {
+        if (!row?.id) return;
+        setDogroupReportGenerating(true);
+        try {
+            // Preferir usar el objeto ya cargado en modal
+            let item: any = dogroupTargetRaw ?? null;
+            if (!item) {
+                const res = await BasicPetition<any>({ endpoint: '/certificate', method: 'GET', params: { id: row.id }, showNotifications: false });
+                item = Array.isArray(res) ? (res[0] ?? null) : (res ?? null);
+            }
+            if (!item) { showNotification({ title: 'Error', message: 'No se encontró la constancia', color: 'red' }); return; }
+
+            const cursantes = Array.isArray(item.xlsx_object?.cursantes) ? item.xlsx_object.cursantes : [];
+            if (!cursantes || cursantes.length === 0) { showNotification({ title: 'Atención', message: 'No hay cursantes para generar el reporte', color: 'yellow' }); return; }
+
+            const rowsTable = cursantes.map((c: any, idx: number) => ([String(idx + 1), c.nombre ?? '', c.curp ?? '', c.puesto_trabajo ?? '', c.ocupacion_especifica ?? '']));
+
+            const reportDoc: any = {
+                pageSize: 'A4',
+                content: [
+                    { text: `Reporte - ${item.company_name ?? ''} - ${item.course_name ?? ''}`, style: 'header' },
+                    { text: '\n' },
+                    {
+                        table: {
+                            headerRows: 1,
+                            widths: ['auto', '*', 'auto', '*', '*'],
+                            body: [[{ text: '#', bold: true }, { text: 'Nombre', bold: true }, { text: 'CURP', bold: true }, { text: 'Puesto', bold: true }, { text: 'Ocupación', bold: true }], ...rowsTable]
+                        }
+                    }
+                ],
+                styles: { header: { fontSize: 14, bold: true } }
+            };
+
+            const certificateData: DC3CertificateData = {
+                id: item._id ?? item.id ?? row.id,
+                company_name: item.company_name ?? '',
+                rfc: item.user_rfc ?? undefined,
+                company_rfc: item.company_rfc ?? undefined,
+                course_name: item.course_name ?? item.course?.name ?? '',
+                course_duration: item.course_duration ?? item.course?.duration ?? '',
+                course_period: item.course_period ?? '',
+                trainer_fullname: item.trainer_fullname ?? '',
+                stps: item.stps ?? item._id ?? '',
+                legal_representative: item.legal_representative ?? '',
+                workers_representative: item.workers_representative ?? '',
+                area_tematica: item.xlsx_object?.area_tematica ?? item.area_tematica ?? '6000 Seguridad',
+                tipo_firma: item.xlsx_object?.tipo_firma ?? undefined,
+                certificate_courses: item.certificate_courses ?? undefined,
+                sign: item.sign ?? undefined,
+                course_id: item.course_id ?? item.course?._id ?? item.course?.id ?? undefined,
+                xlsx_object: item.xlsx_object ?? undefined,
+            } as any;
+
+            // Generar buffer con pdfMake
+            const reportBuf = await pdfMakeGetBuffer(reportDoc);
+            let reportPdfBytes: Uint8Array;
+            try {
+                // Intentar usar la plantilla y overlay
+                reportPdfBytes = await generateReportFromTemplate(certificateData, reportBuf, 'Reporte.pdf');
+            } catch (e) {
+                reportPdfBytes = reportBuf instanceof Uint8Array ? reportBuf : new Uint8Array(reportBuf as any);
+            }
+
+            const { saveAs } = await import('file-saver');
+            // Asegurar ArrayBuffer compatible para Blob (evitar errores con SharedArrayBuffer)
+            const arrBuf = reportPdfBytes instanceof Uint8Array ? reportPdfBytes.buffer.slice(reportPdfBytes.byteOffset, reportPdfBytes.byteOffset + reportPdfBytes.byteLength) : reportPdfBytes as any;
+            const blob = new Blob([arrBuf], { type: 'application/pdf' });
+            saveAs(blob, `Reporte_${item._id ?? item.id ?? row.id}.pdf`);
+            showNotification({ title: 'Generado', message: 'Reporte descargado', color: 'green' });
+        } catch (err) {
+            showNotification({ title: 'Error', message: 'No se pudo generar el reporte', color: 'red' });
+            throw err;
+        } finally {
+            setDogroupReportGenerating(false);
+        }
+    }
     // Función para recortar el espacio en blanco de una imagen
     async function trimImageWhitespace(dataUrl: string): Promise<string> {
         return new Promise((resolve, reject) => {
@@ -693,25 +972,25 @@ export function ConstanciasEmpresaPage() {
             let signatureDataUrl: string | undefined = undefined;
             try {
                 const signId = raw?.sign ?? raw?.trainer?.sign ?? undefined;
-                if (signId) {
-                    if (signatureCache.has(signId)) {
-                        signatureDataUrl = signatureCache.get(signId);
-                    } else {
-                        const driveUrl = `${appConfig.BACKEND_URL}/google/proxy-drive?id=${encodeURIComponent(signId)}`;
-                        const resp = await fetch(driveUrl);
-                        if (resp.ok) {
-                            const blob = await resp.blob();
-                            const rawDataUrl = await new Promise<string>((resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.onloadend = () => resolve(String(reader.result));
-                                reader.onerror = reject;
-                                reader.readAsDataURL(blob);
-                            });
-                            // Recortar espacios en blanco
-                            signatureDataUrl = await trimImageWhitespace(rawDataUrl);
-                            signatureCache.set(signId, signatureDataUrl);
-                        }
+
+                if (signatureCache.has(signId)) {
+                    signatureDataUrl = signatureCache.get(signId);
+                } else {
+                    const driveUrl = `${appConfig.BACKEND_URL}/google/proxy-drive?id=${encodeURIComponent(signId)}`;
+                    const resp = await fetch(driveUrl);
+                    if (resp.ok) {
+                        const blob = await resp.blob();
+                        const rawDataUrl = await new Promise<string>((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(String(reader.result));
+                            reader.onerror = reject;
+                            reader.readAsDataURL(blob);
+                        });
+                        // Recortar espacios en blanco
+                        signatureDataUrl = await trimImageWhitespace(rawDataUrl);
+                        signatureCache.set(signId, signatureDataUrl);
                     }
+
                 }
             } catch (e) {
                 signatureDataUrl = undefined;
@@ -733,14 +1012,11 @@ export function ConstanciasEmpresaPage() {
                     ],
                     [
                         { text: "Curso", bold: true, border: [false, false, false, false] },
-                        {
-                            border: [true, true, true, true],
-                            fillColor: '#549afbff',
-                            stack: [
-                                { text: courseName || '', bold: true, fontSize: 10, margin: [8, 6, 8, 2] },
-                                { text: coursePeriod || '', fontSize: 9, margin: [8, 2, 8, 6] },
-                            ],
-                        },
+                        { text: courseName || '', bold: true, fontSize: 10 },
+                    ],
+                    [
+                        { text: "Periodo", bold: true, border: [false, false, false, false] },
+                        { text: coursePeriod || '', bold: true, fontSize: 10 },
                     ],
                     [
                         { text: "Agente Capacitador", bold: true, border: [false, false, false, false] },
@@ -796,79 +1072,69 @@ export function ConstanciasEmpresaPage() {
                         margin: [0, 0, 0, 12],
                     },
                     {
-                        table: {
-                            headerRows: 1,
-                            widths: [30, "*", 150, 120, 80],
-                            body: tableBody,
-                        },
-                        layout: {
-                            fillColor: (rowIndex: number) => (rowIndex === 0 ? "#CCCCCC" : null),
-                        },
-                    },
-                    { text: "\n\n" },
-                    {
-                        columns: [
+                        stack: [
                             {
-                                width: "50%",
-                                stack: [
-                                    { text: "Instructor", bold: true, alignment: "center" },
-                                    { text: (raw.trainer_fullname ?? "").toString().toUpperCase(), alignment: "center" },
-                                    { text: "\n" },
+                                table: {
+                                    headerRows: 1,
+                                    widths: [30, "*", 150, 120, 80],
+                                    body: tableBody,
+                                },
+                                layout: {
+                                    fillColor: (rowIndex: number) => (rowIndex === 0 ? "#CCCCCC" : null),
+                                },
+                            },
+                            {
+                                columns: [
                                     {
+                                        width: "50%",
                                         stack: [
-                                            // Espacio para la firma
-                                            { text: "\n", margin: [0, 0, 0, 30] },
-                                            // Línea de firma
+                                            { text: "Instructor", bold: true, alignment: "center" },
+                                            { text: (raw.trainer_fullname ?? "").toString().toUpperCase(), alignment: "center" },
+                                            { text: "", margin: [0, 35, 0, 0] },
                                             {
                                                 canvas: [
                                                     { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
                                                 ],
-                                                margin: [0, 0, 0, 4],
+                                                margin: [0, 6, 0, 4],
+                                                alignment: "center",
+                                            },
+                                            { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
+                                            ...(signatureDataUrl ? [
+                                                {
+                                                    image: signatureDataUrl,
+                                                    width: 120,
+                                                    height: 50,
+                                                    alignment: "center",
+                                                    relativePosition: { x: 0, y: -70 },
+                                                },
+                                            ] : []),
+                                        ],
+                                        alignment: "center",
+                                    },
+                                    {
+                                        width: "50%",
+                                        stack: [
+                                            { text: "Capacitación/ Representante", bold: true, alignment: "center" },
+                                            { text: (raw.legal_representative ?? "").toString().toUpperCase(), alignment: "center" },
+                                            { text: "", margin: [0, 35, 0, 0] },
+                                            {
+                                                canvas: [
+                                                    { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
+                                                ],
+                                                margin: [0, 6, 0, 4],
                                                 alignment: "center",
                                             },
                                             { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
                                         ],
-                                    },
-                                    // Imagen de firma superpuesta con posición relativa
-                                    ...(signatureDataUrl ? [
-                                        {
-                                            image: signatureDataUrl,
-                                            width: 120,
-                                            height: 50,
-                                            alignment: "center",
-                                            relativePosition: { x: 0, y: -65 },
-                                        },
-                                    ] : []),
-                                ],
-                                alignment: "center",
-                            },
-                            {
-                                width: "50%",
-                                stack: [
-                                    {
-                                        text: "Capacitación/ Representante",
-                                        bold: true,
                                         alignment: "center",
                                     },
-                                    { text: (raw.legal_representative ?? "").toString().toUpperCase(), alignment: "center" },
-                                    { text: "\n" },
-                                    // Espacio para la firma (igual que la columna del instructor)
-                                    { text: "\n", margin: [0, 0, 0, 30] },
-                                    {
-                                        canvas: [
-                                            { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
-                                        ],
-                                        margin: [0, 0, 0, 4],
-                                        alignment: "center",
-                                    },
-                                    { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
                                 ],
+                                columnGap: 10,
                                 alignment: "center",
+                                margin: [0, 8, 0, 0],
                             },
                         ],
-                        margin: [0, 28, 0, 0],
-                        columnGap: 10,
-                        alignment: "center",
+                        unbreakable: true,
                     },
                 ];
 
@@ -1178,6 +1444,19 @@ export function ConstanciasEmpresaPage() {
                         >
                             Lista
                         </Button>
+                         <Button
+                            onClick={() => openDogroupModal(row)}
+                            className={`action-btn small-action-btn`}
+                            style={{
+                                backgroundColor: '#0e639c',
+                                color: 'white',
+                                transition: 'filter 120ms ease',
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(0.9)')}
+                            onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
+                        >
+                            Dogroup
+                        </Button> 
                         <Button
                             onClick={() => handleDeleteClick(row)}
                             className={`action-btn small-action-btn`}
@@ -1642,6 +1921,113 @@ export function ConstanciasEmpresaPage() {
                     </div>
                 </form>
             </Modal>
+
+            <Modal
+                opened={dogroupModalOpen}
+                onClose={() => closeDogroupModal()}
+                title="Generar documentos DoGroup"
+                centered
+                size="md"
+            >
+                {dogroupContentLoading ? (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '40px' }}>
+                        <div>Cargando...</div>
+                    </div>
+                ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>Elige la acción a realizar para esta constancia:</div>
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                        <Button
+                            onClick={async () => {
+                                if (!dogroupTargetRow) return;
+                                setDogroupGenerating(true);
+                                try {
+                                    await generateDogroupForRow(dogroupTargetRow, false);
+                                } finally {
+                                    setDogroupGenerating(false);
+                                    closeDogroupModal();
+                                }
+                            }}
+                            loading={dogroupGenerating}
+                            disabled={dogroupGenerating || !dogroupTargetRow}
+                        >
+                            Generar Diplomas
+                        </Button>
+                        {(() => {
+                            const hasXlsx = Boolean(dogroupTargetRaw && dogroupTargetRaw.xlsx_object);
+                            const hasCursantes = Boolean(dogroupTargetRaw && Array.isArray(dogroupTargetRaw.xlsx_object?.cursantes) && dogroupTargetRaw.xlsx_object.cursantes.length > 0);
+                            
+                            // No mostrar botones de reporte si hay más de un curso
+                            const hasMultipleCourses = Array.isArray(dogroupTargetRaw?.certificate_courses) && dogroupTargetRaw.certificate_courses.length > 1;
+                            if (hasMultipleCourses) {
+                                return null;
+                            }
+
+                            if (dogroupTargetRaw && dogroupTargetRaw.xlsx_object && dogroupTargetRaw.xlsx_object.reporte) {
+                                const disabled = !dogroupTargetRow || !hasXlsx || !hasCursantes;
+                                const tooltipLabel = !hasXlsx ? 'No hay XLSX asociado' : (!hasCursantes ? 'No hay cursantes para generar el reporte' : '');
+                                if (disabled) {
+                                    return (
+                                        <Tooltip label={tooltipLabel} position="top" withArrow disabled={!disabled}>
+                                            <div>
+                                                <Button loading={false} disabled={disabled}>{'Generar Reporte'}</Button>
+                                            </div>
+                                        </Tooltip>
+                                    );
+                                }
+                                return (
+                                    <Button
+                                        onClick={async () => {
+                                            if (!dogroupTargetRow) return;
+                                            await generateReportForRow(dogroupTargetRow);
+                                            closeDogroupModal();
+                                        }}
+                                        loading={dogroupReportGenerating}
+                                        disabled={dogroupReportGenerating || !dogroupTargetRow}
+                                    >
+                                        Generar Reporte
+                                    </Button>
+                                );
+                            }
+
+                            const canRequest = hasXlsx;
+                            const disabledRequest = dogroupRequesting || !dogroupTargetRow || !canRequest;
+                            const tooltipLabel = !hasXlsx ? 'No hay XLSX asociado; sube un XLSX para solicitar el reporte' : '';
+                            if (disabledRequest) {
+                                return (
+                                    <Tooltip label={tooltipLabel} position="top" withArrow disabled={!disabledRequest}>
+                                        <div>
+                                            <Button disabled>{'Solicitar Reporte'}</Button>
+                                        </div>
+                                    </Tooltip>
+                                );
+                            }
+
+                            return (
+                                <Button
+                                    onClick={async () => {
+                                        if (!dogroupTargetRow) return;
+                                        setDogroupRequesting(true);
+                                        try {
+                                            await sendDogroupRequest(dogroupTargetRow);
+                                        } finally {
+                                            setDogroupRequesting(false);
+                                            closeDogroupModal();
+                                        }
+                                    }}
+                                    loading={dogroupRequesting}
+                                    disabled={dogroupRequesting || !dogroupTargetRow}
+                                >
+                                    Solicitar Reporte
+                                </Button>
+                            );
+                        })()}
+                    </div>
+                    
+                </div>
+                )}
+            </Modal>
+
             <ConfirmModal
                 opened={deleteModalOpen}
                 onClose={() => setDeleteModalOpen(false)}

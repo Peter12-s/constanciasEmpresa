@@ -21,6 +21,7 @@ export interface DC3CertificateData {
   certificate_courses?: any[];
   sign?: string;
   course_id?: string;
+  xlsx_object?: any;
 }
 
 export interface DC3User {
@@ -111,16 +112,34 @@ async function fillPDFTemplate(
   // Helper para texto seguro
   const safeText = (text: any): string => (text || '').toString().toUpperCase();
   
+  // Helper para calcular tamaño de fuente óptimo que quepa en el ancho disponible
+  const getOptimalFontSize = (text: string, font: any, maxWidth: number, defaultSize: number, minSize: number = 6): number => {
+    let size = defaultSize;
+    let textWidth = font.widthOfTextAtSize(text, size);
+    
+    // Si el texto cabe con el tamaño por defecto, usarlo
+    if (textWidth <= maxWidth) return size;
+    
+    // Reducir gradualmente hasta que quepa o llegar al mínimo
+    while (size > minSize && textWidth > maxWidth) {
+      size -= 0.5;
+      textWidth = font.widthOfTextAtSize(text, size);
+    }
+    
+    return Math.max(size, minSize);
+  };
+  
   // Helper para dibujar texto (con centrado automático si aplica)
-  const drawField = (text: string, coordKey: string, font: any) => {
+  const drawField = (text: string, coordKey: string, font: any, customSize?: number) => {
     const coord = COORDS[coordKey];
     if (!text || !coord) return;
     
     let xPos = coord.x;
+    const fontSize = customSize ?? coord.size;
     
     // Aplicar centrado si está configurado
     if (coord.centered && coord.xEnd) {
-      const textWidth = font.widthOfTextAtSize(text, coord.size);
+      const textWidth = font.widthOfTextAtSize(text, fontSize);
       const boxWidth = coord.xEnd - coord.x;
       xPos = coord.x + (boxWidth - textWidth) / 2;
     }
@@ -128,7 +147,7 @@ async function fillPDFTemplate(
     firstPage.drawText(text, {
       x: xPos,
       y: height - coord.y,
-      size: coord.size,
+      size: fontSize,
       font: font,
       color: rgb(0, 0, 0)
     });
@@ -186,9 +205,13 @@ async function fillPDFTemplate(
   }
   
   // DATOS DEL PROGRAMA
-  // Nombre del curso
+  // Nombre del curso (con ajuste automático de tamaño)
   if (certData.course_name) {
-    drawField(safeText(certData.course_name), 'curso', fontBold);
+    const cursoText = safeText(certData.course_name);
+    const coord = COORDS.curso;
+    const maxWidth = coord.xEnd - coord.x;
+    const optimalSize = getOptimalFontSize(cursoText, fontBold, maxWidth, coord.size, 6);
+    drawField(cursoText, 'curso', fontBold, optimalSize);
   }
   
   // Duración
@@ -407,3 +430,584 @@ export async function generateAndDownloadZipDC3FromTemplate(
   const zipContent = await zip.generateAsync({ type: "blob" });
   saveAs(zipContent, zipFileName);
 }
+
+/**
+ * Genera un PDF de reporte partiendo de una plantilla y un PDF de tabla (generado por pdfMake).
+ * - Inserta encabezados (empresa, curso, duración, fechas, capacitador, registro) y las imágenes (logo, firma)
+ * - Adjunta las páginas del PDF de la tabla (reportPdfBytes) al final del documento
+ */
+export async function generateReportFromTemplate(
+  certificateData: DC3CertificateData,
+  reportPdfBytes: Uint8Array | ArrayBuffer,
+  templateFileName: string = 'Reporte.pdf',
+  imageFileIds?: string[] // IDs de archivos (ej. Google Drive) para insertar en la cuadrícula 2x3
+): Promise<Uint8Array> {
+  // Cargar template
+
+  
+  const templateUrl = `${window.location.protocol}//${window.location.host}/${templateFileName}`;
+  const resp = await fetch(templateUrl);
+  if (!resp.ok) throw new Error(`No se pudo cargar el template ${templateFileName}`);
+  const templateBytes = await resp.arrayBuffer();
+
+  const pdfDoc = await PDFDocument.load(templateBytes);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+  const pages = pdfDoc.getPages();
+  const firstPage = pages[0];
+  const { height } = firstPage.getSize();
+
+  const safeText = (t: any) => (t || '').toString().toUpperCase();
+  
+  // Helper para calcular tamaño de fuente óptimo que quepa en el ancho disponible
+  const getOptimalFontSize = (text: string, font: any, maxWidth: number, defaultSize: number, minSize: number = 8): number => {
+    let size = defaultSize;
+    let textWidth = font.widthOfTextAtSize(text, size);
+    
+    // Si el texto cabe con el tamaño por defecto, usarlo
+    if (textWidth <= maxWidth) return size;
+    
+    // Reducir gradualmente hasta que quepa o llegar al mínimo
+    while (size > minSize && textWidth > maxWidth) {
+      size -= 0.5;
+      textWidth = font.widthOfTextAtSize(text, size);
+    }
+    
+    return Math.max(size, minSize);
+  };
+
+  // Coordenadas aproximadas para el encabezado del reporte (ajustar si es necesario)
+  // Valores Y reducidos para colocar los datos más arriba en la página
+  const REPORT_COORDS: Record<string, any> = {
+    course: { x: 40, y: 145, size: 15, xEnd: 555, centered: true },
+    duration: { x: 450, y: 190, size: 10, centered: false },
+    period: { x: 60, y: 190, size: 10, centered: false },
+    trainer: { x: 60, y: 210, size: 10, centered: false },
+    stps: { x: 400, y: 210, size: 10, centered: false },
+  };
+
+  // Dibujar texto principal
+  try {
+    // Nombre del curso con ajuste automático de tamaño
+    if (certificateData.certificate_courses && certificateData.certificate_courses.length > 0) {
+      const txt = safeText(certificateData.certificate_courses[0].course.name);
+
+      const maxW = REPORT_COORDS.course.xEnd - REPORT_COORDS.course.x;
+      const optimalSize = getOptimalFontSize(txt, fontBold, maxW, REPORT_COORDS.course.size, 8);
+      const textWidth = fontBold.widthOfTextAtSize(txt, optimalSize);
+      const xPos = REPORT_COORDS.course.x + Math.max(0, (maxW - textWidth) / 2);
+
+      firstPage.drawText(txt, {
+        x: xPos,
+        y: height - REPORT_COORDS.course.y,
+        size: optimalSize,
+        font: fontBold,
+        color: rgb(0, 0, 0),
+      });
+    }
+
+    // Duración
+    if (certificateData.certificate_courses && certificateData.certificate_courses.length > 0) {
+      firstPage.drawText(String("Duración: " + certificateData.certificate_courses[0].course.duration+"hrs"), { x: REPORT_COORDS.duration.x, y: height - REPORT_COORDS.duration.y, size: REPORT_COORDS.duration.size, font, color: rgb(0,0,0) });
+    }
+
+    // Periodo
+    if (certificateData.certificate_courses && certificateData.certificate_courses.length > 0) {
+      firstPage.drawText(String("Periodo: " + certificateData.certificate_courses[0].start+" / "+certificateData.certificate_courses[0].end), { x: REPORT_COORDS.period.x, y: height - REPORT_COORDS.period.y, size: REPORT_COORDS.period.size, font, color: rgb(0,0,0) });
+    }
+
+    // Capacitador
+    if (certificateData.trainer_fullname) {
+      firstPage.drawText(safeText("Capacitador: " + certificateData.trainer_fullname), { x: REPORT_COORDS.trainer.x, y: height - REPORT_COORDS.trainer.y, size: REPORT_COORDS.trainer.size, font, color: rgb(0,0,0) });
+    }
+
+    // Registro / STPS
+    if (certificateData.stps) {
+      firstPage.drawText(safeText("STPS: " + certificateData.stps), { x: REPORT_COORDS.stps.x, y: height - REPORT_COORDS.stps.y, size: REPORT_COORDS.stps.size, font, color: rgb(0,0,0) });
+    }
+  } catch (e) {
+    // continuar aun si algún campo falla
+  }
+
+  // Insertar galería de imágenes (grid 2x3) si se pasaron IDs (imageFileIds) o si existen en certificateData.xlsx_object.reportes
+  try {
+  const idsFromArgs = Array.isArray(imageFileIds) ? imageFileIds : [];
+  const idsFromCert = Array.isArray((certificateData as any)?.xlsx_object?.reportes) 
+  ? (certificateData as any).xlsx_object.reportes.find((r: any) => Array.isArray(r?.archivos))?.archivos ?? []
+  : []; 
+     const ids = (idsFromArgs && idsFromArgs.length > 0) ? idsFromArgs : (Array.isArray(idsFromCert) ? idsFromCert : []);
+
+
+    if (Array.isArray(ids) && ids.length > 0) {
+      // Dibujar encabezado "EVIDENCIAS FOTOGRÁFICAS"
+      const headerText = 'EVIDENCIAS FOTOGRÁFICAS';
+      const headerSize = 12;
+      const headerY = 270;
+      const headerX = 60;
+      firstPage.drawText(headerText, {
+        x: headerX,
+        y: height - headerY,
+        size: headerSize,
+        font: fontBold,
+        color: rgb(0, 0, 0)
+      });
+
+      const left = 60;
+      const right = 550;
+      const gap = 10;
+      const contentW = right - left;
+      const boxW = Math.round((contentW - gap) / 2);
+      const boxH = 140; // altura de cada recuadro
+      const topY = 300; // posición Y del borde superior del primer renglón
+
+      for (let i = 0; i < 6; i++) {
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const x = left + col * (boxW + gap);
+        const yTop = topY + row * (boxH + gap);
+        const yBottom = height - yTop - boxH; // convertir a coordenadas de pdf-lib (origen abajo)
+
+        const fileId = ids[i];
+        if (!fileId) continue;
+
+
+        try {
+          const driveUrl = `${appConfig.BACKEND_URL}/google/proxy-drive?id=${encodeURIComponent(String(fileId))}`;
+          const r = await fetch(driveUrl);
+          if (!r.ok) continue;
+          const blob = await r.blob();
+          const dataUrl = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onloadend = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(blob); });
+          const bytes = await fetch(dataUrl).then(r2 => r2.arrayBuffer());
+
+          // Intentar embebed PNG y fallback a JPG
+          let img: any = null;
+          try { img = await pdfDoc.embedPng(bytes);  }
+          catch (err) { try { img = await pdfDoc.embedJpg(bytes); } catch (err2) {  } }
+          if (!img) continue;
+
+          const iw = (img as any).width ?? boxW;
+          const ih = (img as any).height ?? boxH;
+          const padding = 6; // margen interno
+          const scale = Math.min((boxW - padding * 2) / iw, (boxH - padding * 2) / ih, 1);
+          const drawW = Math.round(iw * scale);
+          const drawH = Math.round(ih * scale);
+          const imgX = x + Math.round((boxW - drawW) / 2);
+          const imgY = yBottom + Math.round((boxH - drawH) / 2);
+
+          firstPage.drawImage(img, { x: imgX, y: imgY, width: drawW, height: drawH });
+        } catch (e) {
+          // ignorar fallo en una imagen individual
+        }
+      }
+    } else {
+    }
+  } catch (e) { 
+    /* ignore grid failures */ 
+  }
+
+  return await pdfDoc.save();
+}
+
+/**
+ * Genera un reporte fotográfico simple con imágenes locales (base64 data URLs)
+ * No requiere certificado existente, solo datos del formulario
+ */
+export async function generatePhotoReportFromTemplate(
+  courseName: string,
+  trainerName: string,
+  startDate: string,
+  endDate: string,
+  imageDataUrls: string[], // Array de data URLs (base64) de imágenes
+  stps?: string,
+  courseDuration?: string,
+  templateFileName: string = 'Reporte.pdf'
+): Promise<Uint8Array> {
+  // Cargar template
+  const templateUrl = `${window.location.protocol}//${window.location.host}/${templateFileName}`;
+  const resp = await fetch(templateUrl);
+  if (!resp.ok) throw new Error(`No se pudo cargar el template ${templateFileName}`);
+  const templateBytes = await resp.arrayBuffer();
+
+  const pdfDoc = await PDFDocument.load(templateBytes);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+  const pages = pdfDoc.getPages();
+  const firstPage = pages[0];
+  const { height } = firstPage.getSize();
+
+  const safeText = (t: any) => (t || '').toString().toUpperCase();
+  
+  // Helper para calcular tamaño de fuente óptimo
+  const getOptimalFontSize = (text: string, font: any, maxWidth: number, defaultSize: number, minSize: number = 8): number => {
+    let size = defaultSize;
+    let textWidth = font.widthOfTextAtSize(text, size);
+    
+    if (textWidth <= maxWidth) return size;
+    
+    while (size > minSize && textWidth > maxWidth) {
+      size -= 0.5;
+      textWidth = font.widthOfTextAtSize(text, size);
+    }
+    
+    return Math.max(size, minSize);
+  };
+
+  // Coordenadas para el encabezado del reporte
+  const REPORT_COORDS: Record<string, any> = {
+    course: { x: 40, y: 145, size: 15, xEnd: 555, centered: true },
+    duration: { x: 60, y: 170, size: 10, centered: false },
+    period: { x: 60, y: 190, size: 10, centered: false },
+    trainer: { x: 60, y: 210, size: 10, centered: false },
+    stps: { x: 60, y: 230, size: 10, centered: false },
+  };
+
+  // Dibujar encabezado
+  try {
+    // Nombre del curso
+    const courseText = safeText(courseName);
+    const maxW = REPORT_COORDS.course.xEnd - REPORT_COORDS.course.x;
+    const optimalSize = getOptimalFontSize(courseText, fontBold, maxW, REPORT_COORDS.course.size, 8);
+    const textWidth = fontBold.widthOfTextAtSize(courseText, optimalSize);
+    const xPos = REPORT_COORDS.course.x + Math.max(0, (maxW - textWidth) / 2);
+
+    firstPage.drawText(courseText, {
+      x: xPos,
+      y: height - REPORT_COORDS.course.y,
+      size: optimalSize,
+      font: fontBold,
+      color: rgb(0, 0, 0),
+    });
+
+    // Duración (si está disponible)
+    if (courseDuration) {
+      const durationText = `Duración: ${courseDuration}`;
+      firstPage.drawText(durationText, {
+        x: REPORT_COORDS.duration.x,
+        y: height - REPORT_COORDS.duration.y,
+        size: REPORT_COORDS.duration.size,
+        font,
+        color: rgb(0, 0, 0)
+      });
+    }
+
+    // Periodo
+    const periodText = `Periodo: ${startDate} / ${endDate}`;
+    firstPage.drawText(periodText, {
+      x: REPORT_COORDS.period.x,
+      y: height - REPORT_COORDS.period.y,
+      size: REPORT_COORDS.period.size,
+      font,
+      color: rgb(0, 0, 0)
+    });
+
+    // Capacitador
+    const trainerText = safeText(`Capacitador: ${trainerName}`);
+    firstPage.drawText(trainerText, {
+      x: REPORT_COORDS.trainer.x,
+      y: height - REPORT_COORDS.trainer.y,
+      size: REPORT_COORDS.trainer.size,
+      font,
+      color: rgb(0, 0, 0)
+    });
+
+    // STPS (si está disponible)
+    if (stps) {
+      const stpsText = `STPS: ${stps}`;
+      firstPage.drawText(stpsText, {
+        x: REPORT_COORDS.stps.x,
+        y: height - REPORT_COORDS.stps.y,
+        size: REPORT_COORDS.stps.size,
+        font,
+        color: rgb(0, 0, 0)
+      });
+    }
+  } catch (e) {
+    // continuar si falla algún campo
+  }
+
+  // Insertar galería de imágenes (grid 2x3)
+  try {
+    if (Array.isArray(imageDataUrls) && imageDataUrls.length > 0) {
+      // Dibujar encabezado "EVIDENCIAS FOTOGRÁFICAS"
+      const headerText = 'EVIDENCIAS FOTOGRÁFICAS';
+      const headerSize = 12;
+      const headerY = 270;
+      const headerX = 60;
+      firstPage.drawText(headerText, {
+        x: headerX,
+        y: height - headerY,
+        size: headerSize,
+        font: fontBold,
+        color: rgb(0, 0, 0)
+      });
+
+      const left = 60;
+      const right = 550;
+      const gap = 10;
+      const contentW = right - left;
+      const boxW = Math.round((contentW - gap) / 2);
+      const boxH = 140;
+      const topY = 300;
+
+      for (let i = 0; i < Math.min(6, imageDataUrls.length); i++) {
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const x = left + col * (boxW + gap);
+        const yTop = topY + row * (boxH + gap);
+        const yBottom = height - yTop - boxH;
+
+        const dataUrl = imageDataUrls[i];
+        if (!dataUrl) continue;
+
+        try {
+          // Convertir data URL a bytes
+          const bytes = await fetch(dataUrl).then(r => r.arrayBuffer());
+
+          // Intentar embed PNG y fallback a JPG
+          let img: any = null;
+          try {
+            img = await pdfDoc.embedPng(bytes);
+          } catch (err) {
+            try {
+              img = await pdfDoc.embedJpg(bytes);
+            } catch (err2) {
+              continue;
+            }
+          }
+          
+          if (!img) continue;
+
+          const iw = (img as any).width ?? boxW;
+          const ih = (img as any).height ?? boxH;
+          const padding = 6;
+          const scale = Math.min((boxW - padding * 2) / iw, (boxH - padding * 2) / ih, 1);
+          const drawW = Math.round(iw * scale);
+          const drawH = Math.round(ih * scale);
+          const imgX = x + Math.round((boxW - drawW) / 2);
+          const imgY = yBottom + Math.round((boxH - drawH) / 2);
+
+          firstPage.drawImage(img, { x: imgX, y: imgY, width: drawW, height: drawH });
+        } catch (e) {
+          // ignorar fallo en imagen individual
+        }
+      }
+    }
+  } catch (e) {
+    // ignorar fallos en galería
+  }
+
+  return await pdfDoc.save();
+}
+
+// Coordenadas específicas para DiplomaDoGroup
+const DOGROUP_TEMPLATE_COORDS: Record<string, any> = {
+  "DURACION": { x: 224, y: 540, size: 12 },
+  "CURSO": { x: 35, y: 455, size: 15, xEnd: 560, centered: true },
+  "FECHA FIN": { x: 325, y: 557, size: 12 },
+  "FECHA INICIO": { x: 225, y: 557, size: 12 },
+  "CAPACITADOR": { x: 185, y: 665, size: 12, xEnd: 407, centered: true },
+  "STPS": { x: 185, y: 675, size: 10, xEnd: 407, centered: true },
+  "CURSANTE": { x: 150, y: 347,xEnd: 450, size: 18, centered: true },
+  "FIRMA": { x: 150, y: 605, xEnd: 450, maxWidth: 240, maxHeight: 80, centered: true  },
+  "QR": { x: 520, y: 120, size: 50, xEnd: 579 }
+};
+
+export async function generateDiplomasDoGroupFromTemplate(
+  certificateData: DC3CertificateData,
+  users: Array<DC3User>,
+  templateFileName: string = 'DiplomaDoGroup.pdf'
+): Promise<Array<{ name: string; bytes: Uint8Array }>> {
+  // Cargar template una sola vez
+  const templateUrl = `${window.location.protocol}//${window.location.host}/${templateFileName}`;
+  const resp = await fetch(templateUrl);
+  if (!resp.ok) throw new Error(`No se pudo cargar el template ${templateFileName}`);
+  const templateBytes = await resp.arrayBuffer();
+
+  const results: Array<{ name: string; bytes: Uint8Array }> = [];
+
+  // Pre-fetch signature (si existe) y cachearla para usar en todos los PDFs de este certificado
+  const signatureCache = new Map<string, string | undefined>();
+  let globalSignatureDataUrl: string | undefined = undefined;
+  try {
+    const signIdGlobal = (certificateData as any)?.sign ?? undefined;
+    if (signIdGlobal) {
+      if (signatureCache.has(signIdGlobal)) {
+        globalSignatureDataUrl = signatureCache.get(signIdGlobal);
+      } else {
+        const driveUrl = `${appConfig.BACKEND_URL}/google/proxy-drive?id=${encodeURIComponent(signIdGlobal)}`;
+        const respSig = await fetch(driveUrl);
+        if (respSig.ok) {
+          const blob = await respSig.blob();
+          globalSignatureDataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(String(reader.result));
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          signatureCache.set(signIdGlobal, globalSignatureDataUrl);
+        }
+      }
+    }
+  } catch (e) {
+    globalSignatureDataUrl = undefined;
+  }
+
+  for (const user of users) {
+    const pdfDoc = await PDFDocument.load(templateBytes);
+    const pages = pdfDoc.getPages();
+    const firstPage = pages[0];
+    const { height } = firstPage.getSize();
+
+    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+    // Resolver texto para cada clave
+    const resolveValue = (key: string) => {
+      if (!key) return '';
+      if (key === 'QR') return 'QR';
+      if (key === 'CURSANTE') return user.nombre ?? '';
+      if (key === 'CURSO') return certificateData.course_name ?? '';
+      if (key === 'DURACION') return String(certificateData.course_duration ?? '');
+      if (key === 'FECHA FIN') {
+        const parts = (certificateData.course_period || '').split(/\s*\/\s*/);
+        return parts[1]  ?? '';
+      }
+      if (key === 'FECHA INICIO') {
+        const parts = (certificateData.course_period || '').split(/\s*\/\s*/);
+        return parts[0] ?? '';
+      }
+      if (key === 'CAPACITADOR') return certificateData.trainer_fullname ?? '';
+      if (key === 'STPS') return certificateData.stps ?? '';
+      // course name fallback (for any other large keys)
+      if ((certificateData.course_name || '').length > 0 && key.length > 10) return certificateData.course_name;
+      return key;
+    };
+
+    // Draw elements
+    for (const k of Object.keys(DOGROUP_TEMPLATE_COORDS)) {
+      const coord = DOGROUP_TEMPLATE_COORDS[k];
+      if (k === 'QR') {
+        const courseId = certificateData.course_id ?? '';
+        const baseUrl = (() => {
+          const envUrl = import.meta.env?.VITE_FRONTEND_URL;
+          if (envUrl) return String(envUrl);
+          if (typeof window === 'undefined') return '';
+          const { hostname, port } = window.location;
+          if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            return `http://${hostname}${port ? `:${port}` : ''}`;
+          }
+          return window.location.origin;
+        })();
+        const qrUrl = courseId ? `${baseUrl}/#/validar/${certificateData.id}/${user.curp}?course_id=${encodeURIComponent(String(courseId))}` : `${baseUrl}/#/validar/${certificateData.id}/${user.curp}`;
+        const qrDataUrl = await generateQrDataUrl(qrUrl);
+        try {
+          const qrBytes = await fetch(qrDataUrl).then(r => r.arrayBuffer());
+          const qrImage = await pdfDoc.embedPng(qrBytes);
+          const size = coord.size || 50;
+          firstPage.drawImage(qrImage, { x: coord.x, y: height - coord.y - size, width: size, height: size });
+        } catch (e) { /* ignore qr failures */ }
+        continue;
+      }
+
+      // Inserción obligatoria de la firma si existe (sin respetar tipo_firma)
+      if (k === 'FIRMA') {
+        const signatureDataUrl = globalSignatureDataUrl;
+        if (signatureDataUrl) {
+          try {
+            const signBytes = await fetch(signatureDataUrl).then(r => r.arrayBuffer());
+            const signImage = await pdfDoc.embedPng(signBytes);
+
+            const intrinsicWidth = (signImage as any).width ?? 0;
+            const intrinsicHeight = (signImage as any).height ?? 0;
+            const maxWidth = coord.maxWidth ?? 240;
+            const maxHeight = coord.maxHeight ?? 80;
+            const scale = intrinsicWidth && intrinsicHeight ? Math.min(1, Math.min(maxWidth / intrinsicWidth, maxHeight / intrinsicHeight)) : 1;
+            const drawWidth = Math.round(intrinsicWidth * scale) || maxWidth;
+            const drawHeight = Math.round(intrinsicHeight * scale) || maxHeight;
+
+            // Centrar horizontalmente dentro del área
+            let xPos = coord.x;
+            if (coord.xEnd) {
+              const boxW = coord.xEnd - coord.x;
+              xPos = coord.x + Math.max(0, (boxW - drawWidth) / 2);
+            }
+
+            const yPos = height - coord.y - drawHeight / 2;
+            firstPage.drawImage(signImage, { x: xPos, y: yPos, width: drawWidth, height: drawHeight });
+          } catch (e) {
+            /* ignore signature failures */
+          }
+        }
+        continue;
+      }
+
+      const text = String(resolveValue(k) ?? '');
+      if (!text) continue;
+      const fontToUse = (coord && coord.size && coord.size > 12) ? fontBold : font;
+
+      // Helper: wrap text by words to fit within maxWidth
+      const wrapText = (input: string, fontRef: any, size: number, maxWidth: number): string[] => {
+        const words = input.split(/\s+/).filter(Boolean);
+        const lines: string[] = [];
+        let current = '';
+        for (const w of words) {
+          const test = current ? `${current} ${w}` : w;
+          const width = fontRef.widthOfTextAtSize(test, size);
+          if (width <= maxWidth) {
+            current = test;
+          } else {
+            if (current) lines.push(current);
+            // word itself may be too long; split it if needed
+            const wordWidth = fontRef.widthOfTextAtSize(w, size);
+            if (wordWidth <= maxWidth) {
+              current = w;
+            } else {
+              let chunk = '';
+              for (const ch of w) {
+                const t = chunk + ch;
+                if (fontRef.widthOfTextAtSize(t, size) <= maxWidth) {
+                  chunk = t;
+                } else {
+                  if (chunk) lines.push(chunk);
+                  chunk = ch;
+                }
+              }
+              current = chunk;
+            }
+          }
+        }
+        if (current) lines.push(current);
+        return lines;
+      };
+
+      const boxWidth = coord.xEnd ? (coord.xEnd - coord.x) : undefined;
+      const lineHeight = Math.round(coord.size * 1.2);
+      // Solo aplicar wrapping para el nombre del curso (CURSO)
+      let lines: string[] = [text];
+      if (k === 'CURSO' && boxWidth) {
+        lines = wrapText(text, fontToUse, coord.size, boxWidth);
+      }
+      const startY = height - coord.y;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        let xPos = coord.x;
+        if (coord.centered && coord.xEnd) {
+          const tw = fontToUse.widthOfTextAtSize(line, coord.size);
+          xPos = coord.x + Math.max(0, (boxWidth! - tw) / 2);
+        }
+        const yPos = startY - (i * lineHeight);
+        firstPage.drawText(line, { x: xPos, y: yPos, size: coord.size, font: fontToUse, color: rgb(0, 0, 0) });
+      }
+    }
+
+    const pdfBytes = await pdfDoc.save();
+    const name = `${(user.nombre || 'diploma').replace(/[^a-zA-Z0-9 _-]/g, '_').substring(0, 80)}_${(certificateData.course_name || '').replace(/[^a-zA-Z0-9 _-]/g, '_').substring(0, 50)}_${(user.curp || '')}.pdf`;
+    results.push({ name, bytes: pdfBytes });
+  }
+
+  return results;
+}
+
