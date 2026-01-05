@@ -483,6 +483,7 @@ export async function generateReportFromTemplate(
     course: { x: 40, y: 145, size: 15, xEnd: 555, centered: true },
     duration: { x: 450, y: 190, size: 10, centered: false },
     period: { x: 60, y: 190, size: 10, centered: false },
+    company: { x: 60, y: 200, size: 10, centered: false },
     trainer: { x: 60, y: 210, size: 10, centered: false },
     stps: { x: 400, y: 210, size: 10, centered: false },
   };
@@ -515,6 +516,11 @@ export async function generateReportFromTemplate(
     // Periodo
     if (certificateData.certificate_courses && certificateData.certificate_courses.length > 0) {
       firstPage.drawText(String("Periodo: " + certificateData.certificate_courses[0].start+" / "+certificateData.certificate_courses[0].end), { x: REPORT_COORDS.period.x, y: height - REPORT_COORDS.period.y, size: REPORT_COORDS.period.size, font, color: rgb(0,0,0) });
+    }
+
+    // Empresa
+    if (certificateData.company_name) {
+      firstPage.drawText(safeText("Empresa: " + certificateData.company_name), { x: REPORT_COORDS.company.x, y: height - REPORT_COORDS.company.y, size: REPORT_COORDS.company.size, font, color: rgb(0,0,0) });
     }
 
     // Capacitador
@@ -621,6 +627,7 @@ export async function generatePhotoReportFromTemplate(
   imageDataUrls: string[], // Array de data URLs (base64) de imágenes
   stps?: string,
   courseDuration?: string,
+  companyName?: string,
   templateFileName: string = 'Reporte.pdf'
 ): Promise<Uint8Array> {
   // Cargar template
@@ -659,6 +666,7 @@ export async function generatePhotoReportFromTemplate(
     course: { x: 40, y: 145, size: 15, xEnd: 555, centered: true },
     duration: { x: 60, y: 170, size: 10, centered: false },
     period: { x: 60, y: 190, size: 10, centered: false },
+    company: { x: 60, y: 200, size: 10, centered: false },
     trainer: { x: 60, y: 210, size: 10, centered: false },
     stps: { x: 60, y: 230, size: 10, centered: false },
   };
@@ -701,6 +709,18 @@ export async function generatePhotoReportFromTemplate(
       font,
       color: rgb(0, 0, 0)
     });
+
+    // Empresa
+    if (companyName) {
+      const companyText = safeText(`Empresa: ${companyName}`);
+      firstPage.drawText(companyText, {
+        x: REPORT_COORDS.company.x,
+        y: height - REPORT_COORDS.company.y,
+        size: REPORT_COORDS.company.size,
+        font,
+        color: rgb(0, 0, 0)
+      });
+    }
 
     // Capacitador
     const trainerText = safeText(`Capacitador: ${trainerName}`);

@@ -112,6 +112,7 @@ export function ConstanciasAdminPage() {
   const [photoReportModalOpen, setPhotoReportModalOpen] = useState(false);
   const [photoReportCourse, setPhotoReportCourse] = useState<string>('');
   const [photoReportTrainer, setPhotoReportTrainer] = useState<string>('');
+  const [photoReportCompany, setPhotoReportCompany] = useState<string>('');
   const [photoReportStartDate, setPhotoReportStartDate] = useState<string>('');
   const [photoReportEndDate, setPhotoReportEndDate] = useState<string>('');
   const [photoReportFiles, setPhotoReportFiles] = useState<File[]>([]);
@@ -141,6 +142,14 @@ export function ConstanciasAdminPage() {
       if (cert.trainer_fullname) trainersSet.add(cert.trainer_fullname);
     });
     return Array.from(trainersSet).filter(Boolean).sort();
+  };
+
+  const getUniqueCompanies = () => {
+    const companiesSet = new Set<string>();
+    Object.values(certificateRawMap).forEach((cert: any) => {
+      if (cert.company_name) companiesSet.add(cert.company_name);
+    });
+    return Array.from(companiesSet).filter(Boolean).sort();
   };
 
   const getCoursesForTrainer = (trainerName: string) => {
@@ -179,6 +188,7 @@ export function ConstanciasAdminPage() {
     setPhotoReportModalOpen(false);
     setPhotoReportCourse('');
     setPhotoReportTrainer('');
+    setPhotoReportCompany('');
     setPhotoReportStartDate('');
     setPhotoReportEndDate('');
     setPhotoReportFiles([]);
@@ -254,6 +264,7 @@ export function ConstanciasAdminPage() {
         imageDataUrls,
         photoReportStps,
         photoReportDuration,
+        photoReportCompany,
         'Reporte.pdf'
       );
 
@@ -2018,6 +2029,17 @@ export function ConstanciasAdminPage() {
               setPhotoReportStps('');
               setPhotoReportDuration('');
             }}
+            searchable
+            required
+            clearable
+          />
+
+          <Select
+            label="Empresa"
+            placeholder="Selecciona una empresa"
+            data={getUniqueCompanies()}
+            value={photoReportCompany}
+            onChange={(value) => setPhotoReportCompany(value ?? '')}
             searchable
             required
             clearable
