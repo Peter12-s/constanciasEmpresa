@@ -494,7 +494,15 @@ export function ConstanciasEmpresaPage() {
                 } as Row;
             }));
             setCertificateRawMap(rawMap);
-            setRows(rowsWithCourses);
+            // Ordenar por fecha de creación descendente (más recientes primero)
+            const sortedRows = rowsWithCourses.sort((a, b) => {
+                const aRaw = rawMap[a.id ?? ''];
+                const bRaw = rawMap[b.id ?? ''];
+                const aDate = aRaw?.createdAt ?? aRaw?.created_at ?? aRaw?._id ?? '';
+                const bDate = bRaw?.createdAt ?? bRaw?.created_at ?? bRaw?._id ?? '';
+                return String(bDate).localeCompare(String(aDate));
+            });
+            setRows(sortedRows);
         } catch (err) {
             setRows([]);
         }

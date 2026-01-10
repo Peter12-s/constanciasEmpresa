@@ -639,7 +639,15 @@ export function ConstanciasAdminPage() {
       }));
 
       setCertificateRawMap(rawMap);
-      setRows(rowsWithCourses);
+      // Ordenar por fecha de creación descendente (más recientes primero)
+      const sortedRows = rowsWithCourses.sort((a, b) => {
+        const aRaw = rawMap[a.id ?? ''];
+        const bRaw = rawMap[b.id ?? ''];
+        const aDate = aRaw?.createdAt ?? aRaw?.created_at ?? aRaw?._id ?? '';
+        const bDate = bRaw?.createdAt ?? bRaw?.created_at ?? bRaw?._id ?? '';
+        return String(bDate).localeCompare(String(aDate));
+      });
+      setRows(sortedRows);
     } catch (e) {
       setRows([]);
     }
@@ -2089,7 +2097,7 @@ export function ConstanciasAdminPage() {
           </div>
 
           <div>
-            <Text size="sm" weight={500} mb={8}>Fotos (máximo 6)</Text>
+            <Text size="sm"  mb={8}>Fotos (máximo 6)</Text>
             <FileInput
               placeholder="Selecciona hasta 6 fotos"
               multiple
