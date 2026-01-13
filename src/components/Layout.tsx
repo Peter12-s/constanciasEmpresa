@@ -4,12 +4,13 @@ import { Outlet } from 'react-router-dom';
 import { Navbar } from './Navbar';
 import { useGlobalLoading } from '../core/loading';
 import { useState, useEffect } from 'react';
-import { FaBuilding } from 'react-icons/fa';
+import { FaBuilding, FaUserShield } from 'react-icons/fa';
 
 export function AppLayout() {
   const [opened, { toggle, close }] = useDisclosure();
   const loading = useGlobalLoading();
   const [userName, setUserName] = useState<string>('');
+  const [userType, setUserType] = useState<string>('');
 
   useEffect(() => {
     // Obtener nombre de usuario desde localStorage
@@ -18,10 +19,18 @@ export function AppLayout() {
       setUserName(storedName);
     }
 
+    // Obtener tipo de usuario desde localStorage
+    const storedType = localStorage.getItem('mi_app_user_type');
+    if (storedType) {
+      setUserType(storedType);
+    }
+
     // Escuchar cambios en el storage (por si se actualiza en otra pestaña o al hacer login)
     const handleStorageChange = () => {
       const updatedName = localStorage.getItem('mi_app_user_name');
+      const updatedType = localStorage.getItem('mi_app_user_type');
       setUserName(updatedName || '');
+      setUserType(updatedType || '');
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -50,7 +59,11 @@ export function AppLayout() {
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 16 }}>
             {userName && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, backgroundColor: '#f1f3f5', padding: '6px 12px', borderRadius: 8 }}>
-                <FaBuilding size={18} color="#495057" />
+                {userType === 'ADMINISTRADOR' ? (
+                  <FaUserShield size={18} color="#495057" />
+                ) : (
+                  <FaBuilding size={18} color="#495057" />
+                )}
                 <Text size="md" weight={600} color="#495057">
                   {userName}
                 </Text>
