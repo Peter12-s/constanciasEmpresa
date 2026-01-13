@@ -277,7 +277,6 @@ export function ConstanciasAdminPage() {
       showNotification({ title: 'Generado', message: 'Reporte fotográfico descargado', color: 'green' });
       closePhotoReportModal();
     } catch (err) {
-      console.error('Error generando reporte fotográfico:', err);
       showNotification({ title: 'Error', message: 'No se pudo generar el reporte fotográfico', color: 'red' });
     } finally {
       setPhotoReportGenerating(false);
@@ -639,10 +638,21 @@ export function ConstanciasAdminPage() {
       }));
 
       setCertificateRawMap(rawMap);
-      // Ordenar por fecha de creación descendente (más recientes primero)
+      // Ordenar por estado (PENDIENTE primero) y luego por fecha de creación descendente
       const sortedRows = rowsWithCourses.sort((a, b) => {
         const aRaw = rawMap[a.id ?? ''];
         const bRaw = rawMap[b.id ?? ''];
+        
+        // Primero ordenar por estado: PENDIENTE primero
+        const aStatus = String(aRaw?.status ?? '').toUpperCase();
+        const bStatus = String(bRaw?.status ?? '').toUpperCase();
+        const aIsPending = aStatus === 'PENDIENTE';
+        const bIsPending = bStatus === 'PENDIENTE';
+        
+        if (aIsPending && !bIsPending) return -1;
+        if (!aIsPending && bIsPending) return 1;
+        
+        // Si tienen el mismo estado, ordenar por fecha descendente
         const aDate = aRaw?.createdAt ?? aRaw?.created_at ?? aRaw?._id ?? '';
         const bDate = bRaw?.createdAt ?? bRaw?.created_at ?? bRaw?._id ?? '';
         return String(bDate).localeCompare(String(aDate));
@@ -1129,7 +1139,6 @@ export function ConstanciasAdminPage() {
         });
         return;
       }
-
       // Obtener todos los cursos asociados
       const certificateCourses = Array.isArray(raw?.certificate_courses) ? raw.certificate_courses : [];
 
@@ -1163,7 +1172,7 @@ export function ConstanciasAdminPage() {
 
         if (signatureCache.has(signId)) {
           signatureDataUrl = signatureCache.get(signId);
-        } else {
+        } else if (signId) {
           const driveUrl = `${appConfig.BACKEND_URL}/google/proxy-drive?id=${encodeURIComponent(signId)}`;
           const resp = await fetch(driveUrl);
           if (resp.ok) {
@@ -1178,7 +1187,6 @@ export function ConstanciasAdminPage() {
             signatureDataUrl = await trimImageWhitespace(rawDataUrl);
             signatureCache.set(signId, signatureDataUrl);
           }
-
         }
       } catch (e) {
         signatureDataUrl = undefined;
@@ -1200,10 +1208,11 @@ export function ConstanciasAdminPage() {
           ],
           [
             { text: "Curso", bold: true, border: [false, false, false, false] },
-             { text: courseName || '', bold: true, fontSize: 10 },
-          ],[
-             { text: "Periodo", bold: true, border: [false, false, false, false] },
-             { text: coursePeriod || '', bold: true, fontSize: 10 },
+            { text: courseName || '', border: [false, false, false, false] },
+          ],
+          [
+            { text: "Periodo", bold: true, border: [false, false, false, false] },
+            { text: coursePeriod || '', border: [false, false, false, false] },
           ],
           [
             { text: "Agente Capacitador", bold: true, border: [false, false, false, false] },
@@ -1214,7 +1223,6 @@ export function ConstanciasAdminPage() {
             { text: raw.stps ?? raw._id ?? "", border: [false, false, false, false] },
           ],
         ];
-
         const tableBody: any[] = [];
         tableBody.push([
           { text: "#", bold: true, alignment: "center" },
@@ -1223,7 +1231,6 @@ export function ConstanciasAdminPage() {
           { text: "PUESTO DE TRABAJO", bold: true },
           { text: "FIRMA", bold: true },
         ]);
-
         cursantes.forEach((c, i) => {
           tableBody.push([
             { text: String(i + 1), alignment: "center" },
@@ -1234,102 +1241,116 @@ export function ConstanciasAdminPage() {
           ]);
         });
 
-        const pageContent = [
-          {
-            columns: [
-              { width: 120, image: logoDataUrl, margin: [0, 0, 0, 0] },
-              {
-                width: "*",
-                stack: [
-                  {
-                    text: "Registro de curso DOGROUP",
-                    style: "title",
-                    margin: [0, 0, 0, 8],
-                    alignment: "right",
-                  },
-                  {
-                    table: { widths: ["auto", "*"], body: headerTableBody },
-                    layout: "noBorders",
-                  },
-                ],
-                margin: [24, 0, 0, 0],
-              },
-            ],
-            columnGap: 36,
-            margin: [0, 0, 0, 12],
-          },
-          {
-            stack: [
-              {
-                table: {
-                  headerRows: 1,
-                  widths: [30, "*", 150, 120, 80],
-                  body: tableBody,
+        // Header con logo o sin logo
+        const headerSection = logoDataUrl ? {
+          columns: [
+            { width: 120, image: logoDataUrl, margin: [0, 0, 0, 0] },
+            {
+              width: "*",
+              stack: [
+                {
+                  text: "Registro de curso DOGROUP",
+                  style: "title",
+                  margin: [0, 0, 0, 8],
+                  alignment: "right",
                 },
-                layout: {
-                  fillColor: (rowIndex: number) => (rowIndex === 0 ? "#CCCCCC" : null),
+                {
+                  table: { widths: ["auto", "*"], body: headerTableBody },
+                  layout: "noBorders",
                 },
-              },
-              {
-                columns: [
-                  {
-                    width: "50%",
-                    stack: [
-                      { text: "Instructor", bold: true, alignment: "center" },
-                      { text: (raw.trainer_fullname ?? "").toString().toUpperCase(), alignment: "center" },
-                      { text: "", margin: [0, 35, 0, 0] },
-                      {
-                        canvas: [
-                          { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
-                        ],
-                        margin: [0, 6, 0, 4],
-                        alignment: "center",
-                      },
-                      { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
-                      ...(signatureDataUrl ? [
-                        {
-                          image: signatureDataUrl,
-                          width: 120,
-                          height: 50,
-                          alignment: "center",
-                          relativePosition: { x: 0, y: -70 },
-                        },
-                      ] : []),
-                    ],
-                    alignment: "center",
-                  },
-                  {
-                    width: "50%",
-                    stack: [
-                      { text: "Capacitación/ Representante", bold: true, alignment: "center" },
-                      { text: (raw.legal_representative ?? "").toString().toUpperCase(), alignment: "center" },
-                      { text: "", margin: [0, 35, 0, 0] },
-                      {
-                        canvas: [
-                          { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
-                        ],
-                        margin: [0, 6, 0, 4],
-                        alignment: "center",
-                      },
-                      { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
-                    ],
-                    alignment: "center",
-                  },
-                ],
-                columnGap: 10,
-                alignment: "center",
-                margin: [0, 8, 0, 0],
-              },
-            ],
-            unbreakable: true,
+              ],
+              margin: [24, 0, 0, 0],
+            },
+          ],
+          columnGap: 36,
+          margin: [0, 0, 0, 12],
+        } : {
+          stack: [
+            {
+              text: "Registro de curso DOGROUP",
+              style: "title",
+              margin: [0, 0, 0, 8],
+            },
+            {
+              table: { widths: ["auto", "*"], body: headerTableBody },
+              layout: "noBorders",
+            },
+          ],
+          margin: [0, 0, 0, 12],
+        };
+
+        // Tabla de cursantes
+        const cursantesTable = {
+          table: {
+            headerRows: 1,
+            widths: [30, "*", 100, 100, 80],
+            body: tableBody,
           },
-        ];
+          layout: {
+            fillColor: (rowIndex: number) => (rowIndex === 0 ? "#CCCCCC" : null),
+          },
+        };
+
+        // Sección de firmas
+        const firmasSection = {
+          columns: [
+            {
+              width: "50%",
+              stack: [
+                { text: "Instructor", bold: true, alignment: "center" },
+                { text: (raw.trainer_fullname ?? "").toString().toUpperCase(), alignment: "center" },
+                { text: "", margin: [0, 35, 0, 0] },
+                {
+                  canvas: [
+                    { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
+                  ],
+                  margin: [0, 6, 0, 4],
+                  alignment: "center",
+                },
+                { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
+                ...(signatureDataUrl ? [
+                  {
+                    image: signatureDataUrl,
+                    width: 120,
+                    height: 50,
+                    alignment: "center",
+                    relativePosition: { x: 0, y: -70 },
+                  },
+                ] : []),
+              ],
+              alignment: "center",
+            },
+            {
+              width: "50%",
+              stack: [
+                { text: "Capacitación/ Representante", bold: true, alignment: "center" },
+                { text: (raw.legal_representative ?? "").toString().toUpperCase(), alignment: "center" },
+                { text: "", margin: [0, 35, 0, 0] },
+                {
+                  canvas: [
+                    { type: "line", x1: 0, y1: 0, x2: 200, y2: 0, lineWidth: 1 },
+                  ],
+                  margin: [0, 6, 0, 4],
+                  alignment: "center",
+                },
+                { text: "Firma", margin: [0, 4, 0, 0], alignment: "center" },
+              ],
+              alignment: "center",
+            },
+          ],
+          columnGap: 10,
+          alignment: "center",
+          margin: [0, 12, 0, 0],
+        };
+
+        // Agregar elementos a pages
+        pages.push(headerSection);
+        pages.push(cursantesTable);
+        pages.push(firmasSection);
 
         // Agregar salto de página si no es el último curso
         if (courseIndex < certificateCourses.length - 1) {
-          pages.push(pageContent, { text: '', pageBreak: 'after' });
-        } else {
-          pages.push(pageContent);
+          pages.push({ text: '', pageBreak: 'after' });
         }
       });
 
