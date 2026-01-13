@@ -1,12 +1,32 @@
-import { AppShell, Burger, Group, Loader } from '@mantine/core';
+import { AppShell, Burger, Group, Loader, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { Outlet } from 'react-router-dom';
 import { Navbar } from './Navbar';
 import { useGlobalLoading } from '../core/loading';
+import { useState, useEffect } from 'react';
+import { FaBuilding } from 'react-icons/fa';
 
 export function AppLayout() {
   const [opened, { toggle, close }] = useDisclosure();
   const loading = useGlobalLoading();
+  const [userName, setUserName] = useState<string>('');
+
+  useEffect(() => {
+    // Obtener nombre de usuario desde localStorage
+    const storedName = localStorage.getItem('mi_app_user_name');
+    if (storedName) {
+      setUserName(storedName);
+    }
+
+    // Escuchar cambios en el storage (por si se actualiza en otra pestaña o al hacer login)
+    const handleStorageChange = () => {
+      const updatedName = localStorage.getItem('mi_app_user_name');
+      setUserName(updatedName || '');
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   return (
     <AppShell
@@ -27,7 +47,15 @@ export function AppLayout() {
             alt="DoGroup"
             style={{ height: 50, width: 'auto' }}
           />
-          <div style={{ marginLeft: 'auto' }}>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 16 }}>
+            {userName && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, backgroundColor: '#f1f3f5', padding: '6px 12px', borderRadius: 8 }}>
+                <FaBuilding size={18} color="#495057" />
+                <Text size="md" weight={600} color="#495057">
+                  {userName}
+                </Text>
+              </div>
+            )}
             {loading && <Loader size="sm" />}
           </div>
         </Group>

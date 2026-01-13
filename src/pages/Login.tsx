@@ -52,6 +52,14 @@ export function Login() {
         }
         if (!displayName) displayName = login?.user_fullname ?? login?.user?.fullname ?? login?.user?.name ?? login?.fullname ?? login?.name ?? login?.company_name ?? '';
 
+        // Guardar el nombre en localStorage para usarlo en otras páginas
+        if (displayName) {
+          localStorage.setItem('mi_app_user_name', displayName);
+        }
+        if (login.user_id || login._id || login.id) {
+          localStorage.setItem('mi_app_user_id', login.user_id ?? login._id ?? login.id);
+        }
+
         auth.login(login.access_token, () => {
           // show personalized welcome notification
           const message = displayName ? `Bienvenido ${displayName}` : 'Bienvenido';
