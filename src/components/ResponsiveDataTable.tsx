@@ -17,6 +17,7 @@ export type Column<T> = {
   accessor: keyof T | string;
   label: string;
   render?: (row: T) => React.ReactNode;
+  searchValue?: (row: T) => string;
 };
 
 type Props<T> = {
@@ -55,14 +56,17 @@ export function ResponsiveDataTable<T>({
 
   const filtered = useMemo(() => {
     if (!query) return data;
-    const q = query.toLowerCase();
+    const tokens = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
     return data.filter((row) =>
       columns.some((col) => {
         const key = col.accessor as keyof T;
-        const value = (row as any)[key];
+        const value = col.searchValue ? col.searchValue(row) : (row as any)[key];
         if (value == null) return false;
         const hay = valueToSearchable(value).toLowerCase();
-        return hay.includes(q);
+        return tokens.every((t) => hay.includes(t));
       }),
     );
   }, [data, query, columns]);

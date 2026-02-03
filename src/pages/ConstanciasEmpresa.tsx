@@ -363,6 +363,14 @@ export function ConstanciasEmpresaPage() {
         {
             accessor: 'cursantes',
             label: 'Cursante',
+            searchValue: (r) => {
+                const cursantes = r.cursantes ?? [];
+                if (cursantes.length === 0) return '';
+                if (cursantes.length === 1) {
+                    return (cursantes[0].nombre || '').toUpperCase();
+                }
+                return 'GRUPAL';
+            },
             render: (r) => {
                 const cursantes = r.cursantes ?? [];
                 if (cursantes.length === 0) return '';
