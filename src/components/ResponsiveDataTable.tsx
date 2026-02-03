@@ -41,6 +41,17 @@ export function ResponsiveDataTable<T>({
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(initialPageSize);
+  // Convierte cualquier valor (primitivo, array, objeto) en una cadena
+  // razonablemente utilizable para búsquedas.
+  const valueToSearchable = (v: any): string => {
+    if (v == null) return '';
+    if (Array.isArray(v)) {
+      const base = v.map(valueToSearchable).join(' ');
+      return v.length > 1 ? `grupal ${base}` : base;
+    }
+    if (typeof v === 'object') return Object.values(v).map(valueToSearchable).join(' ');
+    return String(v);
+  };
 
   const filtered = useMemo(() => {
     if (!query) return data;
@@ -50,7 +61,8 @@ export function ResponsiveDataTable<T>({
         const key = col.accessor as keyof T;
         const value = (row as any)[key];
         if (value == null) return false;
-        return String(value).toLowerCase().includes(q);
+        const hay = valueToSearchable(value).toLowerCase();
+        return hay.includes(q);
       }),
     );
   }, [data, query, columns]);
