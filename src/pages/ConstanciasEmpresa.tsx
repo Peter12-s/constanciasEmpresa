@@ -94,6 +94,56 @@ export function ConstanciasEmpresaPage() {
     const [addHoverIndividual, setAddHoverIndividual] = useState<boolean>(false);
     const [deleteHover, setDeleteHover] = useState<string | null>(null);
 
+    // Modal de conteo de constancias aprobadas
+    const [countModalOpen, setCountModalOpen] = useState(false);
+    const [countStartDate, setCountStartDate] = useState('');
+    const [countEndDate, setCountEndDate] = useState('');
+    const [countResult, setCountResult] = useState<number | null>(null);
+
+    const openCountModal = () => {
+        setCountModalOpen(true);
+    };
+
+    const closeCountModal = () => {
+        setCountModalOpen(false);
+        setCountResult(null);
+    };
+
+    const parseDateToTime = (value: string | undefined | null): number | null => {
+        if (!value) return null;
+        const raw = String(value).slice(0, 10);
+        const time = new Date(raw).getTime();
+        return Number.isNaN(time) ? null : time;
+    };
+
+    const handleCountApprovedCertificates = () => {
+        if (countStartDate && countEndDate && countStartDate > countEndDate) {
+            showNotification({ title: 'Atención', message: 'La fecha inicial no puede ser mayor a la final', color: 'yellow' });
+            return;
+        }
+
+        const filterStart = parseDateToTime(countStartDate);
+        const filterEnd = parseDateToTime(countEndDate);
+
+        const count = Object.values(certificateRawMap).filter((cert: any) => {
+            const status = String(cert?.status ?? '').toUpperCase();
+            if (status !== 'APROBADO') return false;
+
+            if (!filterStart && !filterEnd) return true;
+
+            // Usar approved_date para el filtro de periodo
+            const approvedDate = parseDateToTime(cert?.approved_date ?? null);
+            if (approvedDate === null) return false;
+
+            const startLimit = filterStart ?? Number.NEGATIVE_INFINITY;
+            const endLimit = filterEnd ?? Number.POSITIVE_INFINITY;
+
+            return approvedDate >= startLimit && approvedDate <= endLimit;
+        }).length;
+
+        setCountResult(count);
+    };
+
     // Deshabilitar botón Crear en modal individual hasta que se llenen los campos requeridos
     const isIndividualSubmitDisabled = () => {
         const v = individualForm.values;
@@ -1433,6 +1483,13 @@ export function ConstanciasEmpresaPage() {
             {/* BOTÓN DE AÑADIR */}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 12, alignItems: 'center' }}>
                 <Button
+                    onClick={openCountModal}
+                    variant="outline"
+                    color="dark"
+                >
+                    Conteo aprobadas
+                </Button>
+                <Button
                     onClick={() => setOpened(true)}
                     aria-label="Crear constancias grupal"
                     style={{ backgroundColor: 'var(--olive-green)', color: 'white', transition: 'filter 120ms ease, transform 120ms ease', filter: addHoverGroup ? 'brightness(0.9)' : 'none', display: 'flex', alignItems: 'center', gap: 8 }}
@@ -2066,6 +2123,44 @@ export function ConstanciasEmpresaPage() {
                     
                 </div>
                 )}
+            </Modal>
+
+            <Modal
+                opened={countModalOpen}
+                onClose={closeCountModal}
+                title="Conteo de constancias aprobadas"
+                centered
+                size="md"
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <TextInput
+                            label="Periodo inicial"
+                            type="date"
+                            value={countStartDate}
+                            onChange={(e) => setCountStartDate(e.currentTarget.value)}
+                        />
+                        <TextInput
+                            label="Periodo final"
+                            type="date"
+                            value={countEndDate}
+                            onChange={(e) => setCountEndDate(e.currentTarget.value)}
+                        />
+                    </div>
+
+                    {countResult !== null && (
+                        <div style={{ background: '#f5f5f5', borderRadius: 8, padding: 12 }}>
+                            <Text fw={700}>Total aprobadas: {countResult}</Text>
+                        </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 6 }}>
+                        <Button variant="outline" onClick={closeCountModal}>Cerrar</Button>
+                        <Button onClick={handleCountApprovedCertificates} style={{ backgroundColor: 'var(--olive-green)', color: 'white' }}>
+                            Contar
+                        </Button>
+                    </div>
+                </div>
             </Modal>
 
             <ConfirmModal

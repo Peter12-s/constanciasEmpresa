@@ -120,6 +120,13 @@ export function ConstanciasAdminPage() {
   const [photoReportStps, setPhotoReportStps] = useState<string>('');
   const [photoReportDuration, setPhotoReportDuration] = useState<string>('');
 
+  // Modal de conteo de constancias aprobadas
+  const [countModalOpen, setCountModalOpen] = useState(false);
+  const [countCompanyOrRfc, setCountCompanyOrRfc] = useState('');
+  const [countStartDate, setCountStartDate] = useState('');
+  const [countEndDate, setCountEndDate] = useState('');
+  const [countResult, setCountResult] = useState<number | null>(null);
+
   // Dogroup: modal con acciones (Generar Diplomas / Diploma + Reporte)
   const [dogroupModalOpen, setDogroupModalOpen] = useState(false);
   const [dogroupTargetRow, setDogroupTargetRow] = useState<Row | null>(null);
@@ -194,6 +201,74 @@ export function ConstanciasAdminPage() {
     setPhotoReportFiles([]);
     setPhotoReportStps('');
     setPhotoReportDuration('');
+  };
+
+  const openCountModal = () => {
+    setCountModalOpen(true);
+  };
+
+  const closeCountModal = () => {
+    setCountModalOpen(false);
+    setCountResult(null);
+  };
+
+  const normalize = (value: string) =>
+    String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+
+  const parseDateToTime = (value: string | undefined | null): number | null => {
+    if (!value) return null;
+    const raw = String(value).slice(0, 10);
+    const time = new Date(raw).getTime();
+    return Number.isNaN(time) ? null : time;
+  };
+
+  const handleCountApprovedCertificates = () => {
+    const query = normalize(countCompanyOrRfc);
+    if (!query) {
+      showNotification({ title: 'Atención', message: 'Ingresa nombre de empresa o RFC', color: 'yellow' });
+      return;
+    }
+
+    if (countStartDate && countEndDate && countStartDate > countEndDate) {
+      showNotification({ title: 'Atención', message: 'La fecha inicial no puede ser mayor a la final', color: 'yellow' });
+      return;
+    }
+
+    const filterStart = parseDateToTime(countStartDate);
+    const filterEnd = parseDateToTime(countEndDate);
+
+    const count = Object.values(certificateRawMap).filter((cert: any) => {
+      const status = String(cert?.status ?? '').toUpperCase();
+      if (status !== 'APROBADO') return false;
+
+      const companyName = normalize(cert?.company_name ?? cert?.user_fullname ?? '');
+      const userRfc = normalize(cert?.user_rfc ?? '');
+      const companyRfc = normalize(cert?.company_rfc ?? '');
+
+      const matchesQuery =
+        companyName.includes(query) ||
+        userRfc.includes(query) ||
+        companyRfc.includes(query);
+
+      if (!matchesQuery) return false;
+
+      if (!filterStart && !filterEnd) return true;
+
+      // Usar approved_date para el filtro de periodo
+      const approvedDate = parseDateToTime(cert?.approved_date ?? null);
+      if (approvedDate === null) return false;
+
+      const startLimit = filterStart ?? Number.NEGATIVE_INFINITY;
+      const endLimit = filterEnd ?? Number.POSITIVE_INFINITY;
+
+      return approvedDate >= startLimit && approvedDate <= endLimit;
+    }).length;
+
+    setCountResult(count);
   };
 
   const openReportModal = (row: Row | null) => {
@@ -767,20 +842,16 @@ export function ConstanciasAdminPage() {
     setCapacitadorAll(raw?.trainer_fullname ?? '');
 
     // top course
-    let topCurso = '';
     let topInicio = '';
     let topFin = '';
     const firstC = Array.isArray(cursantes) && cursantes.length > 0 ? cursantes[0] : null;
     if (firstC && Array.isArray(firstC.cursos) && firstC.cursos.length > 0) {
-      topCurso = firstC.cursos[0].course_name ?? firstC.cursos[0].name ?? firstC.cursos[0].curso ?? '';
       topInicio = firstC.cursos[0].fecha_inicio ?? firstC.cursos[0].start ?? firstC.cursos[0].fechaInicio ?? '';
       topFin = firstC.cursos[0].fecha_fin ?? firstC.cursos[0].end ?? firstC.cursos[0].fechaFin ?? '';
     } else if (Array.isArray(raw?.certificate_courses) && raw.certificate_courses.length > 0) {
-      topCurso = raw.certificate_courses[0]?.course?.name ?? raw.certificate_courses[0]?.course_name ?? '';
       topInicio = raw.certificate_courses[0]?.start ?? raw.certificate_courses[0]?.fecha_inicio ?? '';
       topFin = raw.certificate_courses[0]?.end ?? raw.certificate_courses[0]?.fecha_fin ?? '';
     } else {
-      topCurso = effectiveCourseName ?? '';
       topInicio = inicio ?? '';
       topFin = fin ?? '';
     }
@@ -1541,18 +1612,27 @@ export function ConstanciasAdminPage() {
 
   return (
     <Container size="lg" py="lg">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
         <div>
           <Title order={2}>Constancias</Title>
           <Text color="dimmed">En esta sección podrás ver las listas enviadas por las empresas y el estado de sus constancias.</Text>
         </div>
-        <Button
-          onClick={openPhotoReportModal}
-          style={{ backgroundColor: '#1976d2', color: 'white' }}
-        >
-          <FaCamera size={isMobile ? 20 : 16} style={{ marginRight: isMobile ? 0 : 8 }} />
-          {!isMobile && 'Reporte Fotográfico'}
-        </Button>
+        <Group gap={8}>
+          <Button
+            onClick={openCountModal}
+            variant="outline"
+            color="dark"
+          >
+            Conteo aprobadas
+          </Button>
+          <Button
+            onClick={openPhotoReportModal}
+            style={{ backgroundColor: '#1976d2', color: 'white' }}
+          >
+            <FaCamera size={isMobile ? 20 : 16} style={{ marginRight: isMobile ? 0 : 8 }} />
+            {!isMobile && 'Reporte Fotográfico'}
+          </Button>
+        </Group>
       </div>
 
       <ResponsiveDataTable columns={columns} data={rows} initialPageSize={10} actions={(row) => (
@@ -2037,6 +2117,51 @@ export function ConstanciasAdminPage() {
                 </div>
                 )}
             </Modal>
+
+      <Modal
+        opened={countModalOpen}
+        onClose={closeCountModal}
+        title="Conteo de constancias aprobadas"
+        centered
+        size="md"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <TextInput
+            label="Empresa o RFC"
+            placeholder="Ej. COMBUGAS o CVM9506051B9"
+            value={countCompanyOrRfc}
+            onChange={(e) => setCountCompanyOrRfc(e.currentTarget.value)}
+          />
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <TextInput
+              label="Periodo inicial"
+              type="date"
+              value={countStartDate}
+              onChange={(e) => setCountStartDate(e.currentTarget.value)}
+            />
+            <TextInput
+              label="Periodo final"
+              type="date"
+              value={countEndDate}
+              onChange={(e) => setCountEndDate(e.currentTarget.value)}
+            />
+          </div>
+
+          {countResult !== null && (
+            <div style={{ background: '#f5f5f5', borderRadius: 8, padding: 12 }}>
+              <Text fw={700}>Total aprobadas: {countResult}</Text>
+            </div>
+          )}
+
+          <Group justify="flex-end" mt={6}>
+            <Button variant="outline" onClick={closeCountModal}>Cerrar</Button>
+            <Button onClick={handleCountApprovedCertificates} style={{ backgroundColor: 'var(--olive-green)', color: 'white' }}>
+              Contar
+            </Button>
+          </Group>
+        </div>
+      </Modal>
 
       <Modal
         opened={photoReportModalOpen}
