@@ -125,23 +125,36 @@ export function ConstanciasEmpresaPage() {
         const filterStart = parseDateToTime(countStartDate);
         const filterEnd = parseDateToTime(countEndDate);
 
-        const count = Object.values(certificateRawMap).filter((cert: any) => {
+        // Contar constancias (cada cursante = 1 constancia)
+        // Una petición puede tener múltiples cursantes en xlsx_object.cursantes
+        let totalConstancias = 0;
+
+        Object.values(certificateRawMap).forEach((cert: any) => {
             const status = String(cert?.status ?? '').toUpperCase();
-            if (status !== 'APROBADO') return false;
+            if (status !== 'APROBADO') return;
 
-            if (!filterStart && !filterEnd) return true;
+            // Filtrar por fecha si aplica
+            if (filterStart || filterEnd) {
+                const approvedDate = parseDateToTime(cert?.approved_date ?? null);
+                if (approvedDate === null) return;
 
-            // Usar approved_date para el filtro de periodo
-            const approvedDate = parseDateToTime(cert?.approved_date ?? null);
-            if (approvedDate === null) return false;
+                const startLimit = filterStart ?? Number.NEGATIVE_INFINITY;
+                const endLimit = filterEnd ?? Number.POSITIVE_INFINITY;
 
-            const startLimit = filterStart ?? Number.NEGATIVE_INFINITY;
-            const endLimit = filterEnd ?? Number.POSITIVE_INFINITY;
+                if (approvedDate < startLimit || approvedDate > endLimit) return;
+            }
 
-            return approvedDate >= startLimit && approvedDate <= endLimit;
-        }).length;
+            // Contar cursantes de esta petición (cada cursante = 1 constancia)
+            const cursantes = cert?.xlsx_object?.cursantes;
+            if (Array.isArray(cursantes) && cursantes.length > 0) {
+                totalConstancias += cursantes.length;
+            } else {
+                // Si no hay cursantes en xlsx_object, contar como 1 constancia individual
+                totalConstancias += 1;
+            }
+        });
 
-        setCountResult(count);
+        setCountResult(totalConstancias);
     };
 
     // Deshabilitar botón Crear en modal individual hasta que se llenen los campos requeridos
