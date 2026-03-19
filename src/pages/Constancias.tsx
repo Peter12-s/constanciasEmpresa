@@ -227,9 +227,8 @@ export function ConstanciasAdminPage() {
   };
 
   const handleCountApprovedCertificates = () => {
-    const query = normalize(countCompanyOrRfc);
-    if (!query) {
-      showNotification({ title: 'Atención', message: 'Ingresa nombre de empresa o RFC', color: 'yellow' });
+    if (!countCompanyOrRfc) {
+      showNotification({ title: 'Atención', message: 'Selecciona una empresa', color: 'yellow' });
       return;
     }
 
@@ -241,34 +240,39 @@ export function ConstanciasAdminPage() {
     const filterStart = parseDateToTime(countStartDate);
     const filterEnd = parseDateToTime(countEndDate);
 
-    const count = Object.values(certificateRawMap).filter((cert: any) => {
+    // Contar constancias (cada cursante = 1 constancia)
+    let totalConstancias = 0;
+
+    Object.values(certificateRawMap).forEach((cert: any) => {
       const status = String(cert?.status ?? '').toUpperCase();
-      if (status !== 'APROBADO') return false;
+      if (status !== 'APROBADO') return;
 
-      const companyName = normalize(cert?.company_name ?? cert?.user_fullname ?? '');
-      const userRfc = normalize(cert?.user_rfc ?? '');
-      const companyRfc = normalize(cert?.company_rfc ?? '');
+      // Filtrar por empresa seleccionada
+      const companyName = cert?.company_name ?? cert?.user_fullname ?? '';
+      if (companyName !== countCompanyOrRfc) return;
 
-      const matchesQuery =
-        companyName.includes(query) ||
-        userRfc.includes(query) ||
-        companyRfc.includes(query);
+      // Filtrar por fecha si aplica
+      if (filterStart || filterEnd) {
+        const approvedDate = parseDateToTime(cert?.approved_date ?? null);
+        if (approvedDate === null) return;
 
-      if (!matchesQuery) return false;
+        const startLimit = filterStart ?? Number.NEGATIVE_INFINITY;
+        const endLimit = filterEnd ?? Number.POSITIVE_INFINITY;
 
-      if (!filterStart && !filterEnd) return true;
+        if (approvedDate < startLimit || approvedDate > endLimit) return;
+      }
 
-      // Usar approved_date para el filtro de periodo
-      const approvedDate = parseDateToTime(cert?.approved_date ?? null);
-      if (approvedDate === null) return false;
+      // Contar cursantes de esta petición (cada cursante = 1 constancia)
+      const cursantes = cert?.xlsx_object?.cursantes;
+      if (Array.isArray(cursantes) && cursantes.length > 0) {
+        totalConstancias += cursantes.length;
+      } else {
+        // Si no hay cursantes en xlsx_object, contar como 1 constancia individual
+        totalConstancias += 1;
+      }
+    });
 
-      const startLimit = filterStart ?? Number.NEGATIVE_INFINITY;
-      const endLimit = filterEnd ?? Number.POSITIVE_INFINITY;
-
-      return approvedDate >= startLimit && approvedDate <= endLimit;
-    }).length;
-
-    setCountResult(count);
+    setCountResult(totalConstancias);
   };
 
   const openReportModal = (row: Row | null) => {
@@ -2126,11 +2130,15 @@ export function ConstanciasAdminPage() {
         size="md"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <TextInput
-            label="Empresa o RFC"
-            placeholder="Ej. COMBUGAS o CVM9506051B9"
+          <Select
+            label="Empresa"
+            placeholder="Selecciona una empresa"
+            data={getUniqueCompanies()}
             value={countCompanyOrRfc}
-            onChange={(e) => setCountCompanyOrRfc(e.currentTarget.value)}
+            onChange={(v) => setCountCompanyOrRfc(v ?? '')}
+            searchable
+            clearable
+            nothingFoundMessage="No se encontraron empresas"
           />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
