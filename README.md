@@ -1,19 +1,66 @@
-# React + TypeScript + Vite
-t
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# DoGroup Constancias - Sistema de Gestión de Constancias
 
-Currently, two official plugins are available:
+Aplicación web para la gestión y generación de constancias de capacitación empresarial desarrollada con React + TypeScript + Vite.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Características
 
-## React Compiler
+- Gestión de usuarios y empresas
+- Generación de constancias en PDF
+- Validación de constancias mediante QR
+- Exportación a Excel
+- Interfaz moderna con Mantine UI
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Desarrollo
 
-## Expanding the ESLint configuration
+```bash
+# Instalar dependencias
+npm install
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+# Ejecutar en modo desarrollo
+npm run dev
+
+# Compilar para producción
+npm run build
+
+# Vista previa de la compilación
+npm preview
+```
+
+## Despliegue a GitHub Pages
+
+Este proyecto está configurado para desplegarse en GitHub Pages. El archivo `.nojekyll` en la carpeta `public/` es **crucial** para el correcto funcionamiento del sitio.
+
+### ¿Por qué es necesario el archivo .nojekyll?
+
+GitHub Pages usa Jekyll por defecto, lo que puede causar problemas con aplicaciones modernas de JavaScript:
+- Jekyll ignora archivos y carpetas que comienzan con guión bajo (`_`)
+- Puede servir archivos JavaScript/TypeScript con MIME types incorrectos
+- Esto resulta en el error: "Expected a JavaScript module script but the server responded with a MIME type of 'application/octet-stream'"
+
+El archivo `.nojekyll` le indica a GitHub Pages que no use Jekyll, asegurando que todos los archivos se sirvan correctamente.
+
+### Comandos de despliegue
+
+```bash
+# Compilar y desplegar
+npm run predeploy  # Compila el proyecto
+npm run deploy     # Despliega a gh-pages
+```
+
+## Tecnologías
+
+- **React 19** - Biblioteca UI
+- **TypeScript** - Tipado estático
+- **Vite** - Build tool y dev server
+- **Mantine UI** - Biblioteca de componentes
+- **React Router** - Enrutamiento
+- **pdfmake** - Generación de PDFs
+- **xlsx** - Exportación a Excel
+- **QRCode** - Generación de códigos QR
+
+## Configuración de ESLint
+
+Si estás desarrollando una aplicación de producción, recomendamos actualizar la configuración para habilitar reglas de lint con conocimiento de tipos:
 
 ```js
 export default defineConfig([
@@ -43,7 +90,7 @@ export default defineConfig([
 ])
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+También puedes instalar [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) y [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) para reglas específicas de React:
 
 ```js
 // eslint.config.js
