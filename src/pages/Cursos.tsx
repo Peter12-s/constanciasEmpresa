@@ -131,6 +131,20 @@ export function CursosPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
+  const [newCourseFiles, setNewCourseFiles] = useState<{ content: File | null; syllabus: File | null; assessment: File | null }>({ content: null, syllabus: null, assessment: null });
+  const [newCourseFileIds, setNewCourseFileIds] = useState<Record<string, string>>({});
+  const [newCourseUploadError, setNewCourseUploadError] = useState<string | null>(null);
+  const [newCourseUploadInProgress, setNewCourseUploadInProgress] = useState<Record<string, boolean>>({});
+
+  const resetNewCourseModal = () => {
+    courseForm.reset();
+    setNewCourseFiles({ content: null, syllabus: null, assessment: null });
+    setNewCourseFileIds({});
+    setNewCourseUploadError(null);
+    setNewCourseUploadInProgress({});
+    setOpenNewCourse(false);
+  };
+
   const capForm = useForm({ initialValues: { name: "", f_surname: "", s_surname: "", correo: "", telefono: "", stps: "", firma: null as File | null } });
   const editCapForm = useForm({ initialValues: { name: "", f_surname: "", s_surname: "", correo: "", telefono: "", stps: "", firma: null } });
   const [uploadInProgress, setUploadInProgress] = useState(false);
@@ -270,6 +284,44 @@ export function CursosPage() {
       showNotification({ title: 'Error', message: 'No se pudo subir la firma', color: 'red' });
     } finally {
       setUploadInProgress(false);
+    }
+  };
+
+
+
+  const uploadCourseFile = async (file: File | null, field: 'content' | 'syllabus' | 'assessment') => {
+    const labelMap: Record<string, string> = {
+      content: 'contenido',
+      syllabus: 'temario',
+      assessment: 'evaluación',
+    };
+    const label = labelMap[field];
+    setNewCourseUploadError(null);
+    if (!file) return;
+
+    setNewCourseUploadInProgress(prev => ({ ...prev, [field]: true }));
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('path', `COURSE_FILES/${field.toUpperCase()}`);
+
+      const token = typeof window !== 'undefined' ? localStorage.getItem('mi_app_token') : null;
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const res = await fetch(`${appConfig.BACKEND_URL}/google/upload`, { method: 'POST', body: fd, headers });
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+      const data = await res.json();
+      const uploadedId = String(data.id ?? data.sign ?? data.path ?? '');
+      if (!uploadedId) throw new Error('No se obtuvo el ID del archivo');
+
+      setNewCourseFileIds(prev => ({ ...prev, [`${field}_file`]: uploadedId }));
+      showNotification({ title: `Archivo ${label} subido`, message: `Archivo ${label} subido correctamente`, color: 'green' });
+    } catch (e: any) {
+      setNewCourseUploadError(`No se pudo subir el archivo de ${label}`);
+      showNotification({ title: 'Error', message: `No se pudo subir el archivo de ${label}`, color: 'red' });
+    } finally {
+      setNewCourseUploadInProgress(prev => ({ ...prev, [field]: false }));
     }
   };
 
@@ -785,18 +837,24 @@ export function CursosPage() {
         </form>
       </Modal>
 
-      {/* NEW GLOBAL COURSE */}
-      <Modal opened={openNewCourse} onClose={() => setOpenNewCourse(false)} title="Crear nuevo curso">
+     {/* NEW GLOBAL COURSE */}
+      <Modal opened={openNewCourse} onClose={resetNewCourseModal} title="Crear nuevo curso">
         <form onSubmit={async (e) => {
-          e.preventDefault(); await (async () => {
-            // reuse addCursoTo but without capId: create in catalog and refresh
+          e.preventDefault();
+          await (async () => {
             const durationNum = Number(courseForm.values.duracion);
-            const payload = { name: courseForm.values.titulo || '', duration: Number.isFinite(durationNum) ? Math.max(0, Math.trunc(durationNum)) : 0 };
+            const payload: Record<string, any> = {
+              name: courseForm.values.titulo || '',
+              duration: Number.isFinite(durationNum) ? Math.max(0, Math.trunc(durationNum)) : 0,
+            };
+            if (newCourseFileIds.content_file) payload.content_file = newCourseFileIds.content_file;
+            if (newCourseFileIds.syllabus_file) payload.syllabus_file = newCourseFileIds.syllabus_file;
+            if (newCourseFileIds.assessment_file) payload.assessment_file = newCourseFileIds.assessment_file;
+
             try {
               await BasicPetition<any>({ endpoint: '/Course', method: 'POST', data: payload, showNotifications: false });
               showNotification({ title: 'Creado', message: 'Curso creado en catálogo', color: 'green' });
-              courseForm.reset();
-              setOpenNewCourse(false);
+              resetNewCourseModal();
               await fetchCoursesCatalog();
             } catch (err) {
               showNotification({ title: 'Error', message: 'No se pudo crear el curso', color: 'red' });
@@ -811,11 +869,90 @@ export function CursosPage() {
             style={{ textTransform: 'uppercase' }}
           />
           <TextInput label="Duración" mt="sm" {...courseForm.getInputProps("duracion")} />
+
+          <Group grow mt="sm" align="flex-end">
+            <FileInput
+              label="Archivo de contenido"
+              placeholder="Selecciona el archivo de contenido"
+              accept="application/pdf"
+              value={newCourseFiles.content}
+              onChange={(file) => {
+                setNewCourseFiles(prev => ({ ...prev, content: file }));
+                setNewCourseFileIds(prev => {
+                  const copy = { ...prev };
+                  delete copy.content_file;
+                  return copy;
+                });
+              }}
+            />
+            <Button
+              size="sm"
+              disabled={!newCourseFiles.content || Boolean(newCourseUploadInProgress.content)}
+              onClick={() => uploadCourseFile(newCourseFiles.content, 'content')}
+            >
+              {newCourseUploadInProgress.content ? 'Subiendo...' : 'Subir'}
+            </Button>
+          </Group>
+          {newCourseFileIds.content_file && <Text size="xs" color="green">ID contenido: {newCourseFileIds.content_file}</Text>}
+
+          <Group grow mt="sm" align="flex-end">
+            <FileInput
+              label="Archivo de temario"
+              placeholder="Selecciona el archivo de temario"
+              accept="application/pdf"
+              value={newCourseFiles.syllabus}
+              onChange={(file) => {
+                setNewCourseFiles(prev => ({ ...prev, syllabus: file }));
+                setNewCourseFileIds(prev => {
+                  const copy = { ...prev };
+                  delete copy.syllabus_file;
+                  return copy;
+                });
+              }}
+            />
+            <Button
+              size="sm"
+              disabled={!newCourseFiles.syllabus || Boolean(newCourseUploadInProgress.syllabus)}
+              onClick={() => uploadCourseFile(newCourseFiles.syllabus, 'syllabus')}
+            >
+              {newCourseUploadInProgress.syllabus ? 'Subiendo...' : 'Subir'}
+            </Button>
+          </Group>
+          {newCourseFileIds.syllabus_file && <Text size="xs" color="green">ID temario: {newCourseFileIds.syllabus_file}</Text>}
+
+          <Group grow mt="sm" align="flex-end">
+            <FileInput
+              label="Archivo de evaluación"
+              placeholder="Selecciona el archivo de evaluación"
+              accept="application/pdf"
+              value={newCourseFiles.assessment}
+              onChange={(file) => {
+                setNewCourseFiles(prev => ({ ...prev, assessment: file }));
+                setNewCourseFileIds(prev => {
+                  const copy = { ...prev };
+                  delete copy.assessment_file;
+                  return copy;
+                });
+              }}
+            />
+            <Button
+              size="sm"
+              disabled={!newCourseFiles.assessment || Boolean(newCourseUploadInProgress.assessment)}
+              onClick={() => uploadCourseFile(newCourseFiles.assessment, 'assessment')}
+            >
+              {newCourseUploadInProgress.assessment ? 'Subiendo...' : 'Subir'}
+            </Button>
+          </Group>
+          {newCourseFileIds.assessment_file && <Text size="xs" color="green">ID evaluación: {newCourseFileIds.assessment_file}</Text>}
+
+          {newCourseUploadError && <Text size="sm" color="red" mt="sm">{newCourseUploadError}</Text>}
+
           <Group justify="flex-end" mt="md">
             <Button type="submit" style={{ background: "#3b82f6", color: "white" }}>Crear curso</Button>
           </Group>
         </form>
       </Modal>
+
 
       {/* ASSIGN EXISTING COURSE TO CAP */}
       <Modal opened={openAssignCourse} onClose={() => setOpenAssignCourse(false)} title="Asignar curso existente">
@@ -856,12 +993,11 @@ export function CursosPage() {
             showNotification({ title: 'Error', message: 'No se pudo asignar el curso', color: 'red' });
           }
         }}>
-          <Select
+           <Select
             label="Cursos disponibles"
             placeholder="Selecciona un curso"
             searchable
-            clearable
-            maxDropdownHeight={260}
+            nothingFoundMessage="No se encontró ningún curso"
             data={coursesCatalog.map(c => ({ value: String(c.id), label: `${c.name} (${typeof c.duration === 'number' ? String(c.duration) + 'h' : c.duration})` }))}
             value={selectedCatalogCourse ? String(selectedCatalogCourse) : null}
             onChange={(v) => setSelectedCatalogCourse(v ? v : null)}

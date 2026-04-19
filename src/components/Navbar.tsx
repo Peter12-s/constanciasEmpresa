@@ -6,6 +6,7 @@ import {
   FaSignOutAlt,
   FaFileAlt,
   FaBookOpen,
+  FaBook,
   FaUser,
 } from 'react-icons/fa';
 
@@ -46,18 +47,37 @@ export function Navbar({ onLinkClick }: { onLinkClick?: () => void }) {
             active={isActive('/usuarios')}
             onClick={() => onLinkClick?.()}
           />
+           <NavLink
+            label="Biblioteca"
+            leftSection={<FaBook size={14} />}
+            component={Link}
+            to="/biblioteca"
+            active={isActive('/biblioteca')}
+            onClick={() => onLinkClick?.()}
+          />
         </>
       )}
 
       {auth.isAuthenticated && auth.userType === 'EMPRESA' && (
-        <NavLink
-          label="ConstanciasEmpresa"
-          leftSection={<FaFileAlt size={16} />}
-          component={Link}
-          to="/constanciasEmpresa"
-          active={isActive('/constanciasEmpresa')}
-          onClick={() => onLinkClick?.()}
-        />
+           <>
+          <NavLink
+            label="ConstanciasEmpresa"
+            leftSection={<FaFileAlt size={16} />}
+            component={Link}
+            to="/constanciasEmpresa"
+            active={isActive('/constanciasEmpresa')}
+            onClick={() => onLinkClick?.()}
+          />
+          <NavLink
+            label="Biblioteca"
+            leftSection={<FaBook size={14} />}
+            component={Link}
+            to="/biblioteca"
+            active={isActive('/biblioteca')}
+            onClick={() => onLinkClick?.()}
+          />
+        </>
+        
       )}
 
       {!auth.isAuthenticated ? (

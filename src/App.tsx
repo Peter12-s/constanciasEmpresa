@@ -9,6 +9,7 @@ import ValidarPage from './pages/Validar';
 import { UsuariosPage } from './pages/Usuarios';
 import { Login } from './pages/Login';
 import { useAuth } from './AuthContext';
+import { BibliotecaPage } from './pages/Biblioteca';
 
 function DefaultRedirect() {
   const auth = useAuth();
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="empresas" element={<EmpresasPage />} />
         <Route path="constanciasEmpresa" element={<ConstanciasEmpresaPage />} />
         <Route path="usuarios" element={<UsuariosPage />} />
+        <Route path="biblioteca" element={<BibliotecaPage />} />
 
         {/* 👇 404 */}
         <Route path="*" element={<Navigate to="/" replace />} />
