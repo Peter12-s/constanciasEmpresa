@@ -153,6 +153,9 @@ export function CursosPage() {
 
   const courseForm = useForm({ initialValues: { titulo: "", duracion: "" } });
   const editCourseForm = useForm({ initialValues: { titulo: "", duracion: "" } });
+  const [editCourseFiles, setEditCourseFiles] = useState<{ content: File | null; syllabus: File | null; assessment: File | null }>({ content: null, syllabus: null, assessment: null });
+  const [editCourseFileIds, setEditCourseFileIds] = useState<{ content_file?: string; syllabus_file?: string; assessment_file?: string }>({});
+  const [editCourseUploadInProgress, setEditCourseUploadInProgress] = useState<{ content: boolean; syllabus: boolean; assessment: boolean }>({ content: false, syllabus: false, assessment: false });
   const [coursesCatalog, setCoursesCatalog] = useState<Array<{ id: number | string; name: string; duration: string }>>([]);
   const [openNewCourse, setOpenNewCourse] = useState(false);
   const [openAssignCourse, setOpenAssignCourse] = useState(false);
@@ -325,6 +328,40 @@ export function CursosPage() {
     }
   };
 
+  const uploadEditCourseFile = async (file: File | null, field: 'content' | 'syllabus' | 'assessment') => {
+    const labelMap: Record<string, string> = {
+      content: 'contenido',
+      syllabus: 'temario',
+      assessment: 'evaluación',
+    };
+    const label = labelMap[field];
+    if (!file) return;
+
+    setEditCourseUploadInProgress(prev => ({ ...prev, [field]: true }));
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('path', `COURSE_FILES/${field.toUpperCase()}`);
+
+      const token = typeof window !== 'undefined' ? localStorage.getItem('mi_app_token') : null;
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const res = await fetch(`${appConfig.BACKEND_URL}/google/upload`, { method: 'POST', body: fd, headers });
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+      const data = await res.json();
+      const uploadedId = String(data.id ?? data.sign ?? data.path ?? '');
+      if (!uploadedId) throw new Error('No se obtuvo el ID del archivo');
+
+      setEditCourseFileIds(prev => ({ ...prev, [`${field}_file`]: uploadedId }));
+      showNotification({ title: `Archivo ${label} subido`, message: `Archivo ${label} subido correctamente`, color: 'green' });
+    } catch (e: any) {
+      showNotification({ title: 'Error', message: `No se pudo subir el archivo de ${label}`, color: 'red' });
+    } finally {
+      setEditCourseUploadInProgress(prev => ({ ...prev, [field]: false }));
+    }
+  };
+
   const addCapacitador = async (_values: typeof capForm.values) => {
     // require uploadedSign
     if (!uploadedSign) {
@@ -483,6 +520,9 @@ export function CursosPage() {
     if (!curso) return;
     setEditCourseInfo({ capId, cursoId });
     editCourseForm.setValues({ titulo: curso.titulo, duracion: curso.duracion });
+    setEditCourseFiles({ content: null, syllabus: null, assessment: null });
+    setEditCourseFileIds({});
+    setEditCourseUploadInProgress({ content: false, syllabus: false, assessment: false });
     setOpenEditCourse(true);
   };
 
@@ -497,8 +537,15 @@ export function CursosPage() {
 
     (async () => {
       try {
-        const payload = { name: editCourseForm.values.titulo || '', duration: durationNum };
-        const updated = await BasicPetition<any>({ endpoint: `/Course/${cursoId}`, method: 'PATCH', data: payload, showNotifications: false });
+        let payload: any;
+        let headers: Record<string, string> = {};
+
+        payload = { name: editCourseForm.values.titulo || '', duration: durationNum };
+        if (editCourseFileIds.content_file) payload.content_file = editCourseFileIds.content_file;
+        if (editCourseFileIds.syllabus_file) payload.syllabus_file = editCourseFileIds.syllabus_file;
+        if (editCourseFileIds.assessment_file) payload.assessment_file = editCourseFileIds.assessment_file;
+
+        const updated = await BasicPetition<any>({ endpoint: `/Course/${cursoId}`, method: 'PATCH', data: payload, headers, showNotifications: false });
         // if backend returns updated course use it, else fallback to form values
         const updatedName = updated?.name ?? payload.name;
         const updatedDurationVal = updated?.duration ?? payload.duration;
@@ -1019,6 +1066,82 @@ export function CursosPage() {
             style={{ textTransform: 'uppercase' }}
           />
           <TextInput label="Duración" mt="sm" {...editCourseForm.getInputProps("duracion")} />
+
+          <Group grow mt="sm" align="flex-end">
+            <FileInput
+              label="Archivo de contenido"
+              placeholder="Selecciona el archivo de contenido"
+              accept="application/pdf"
+              value={editCourseFiles.content}
+              onChange={(file) => {
+                setEditCourseFiles(prev => ({ ...prev, content: file }));
+                setEditCourseFileIds(prev => {
+                  const copy = { ...prev };
+                  delete copy.content_file;
+                  return copy;
+                });
+              }}
+            />
+            <Button
+              size="sm"
+              disabled={!editCourseFiles.content || editCourseUploadInProgress.content}
+              onClick={() => uploadEditCourseFile(editCourseFiles.content, 'content')}
+            >
+              {editCourseUploadInProgress.content ? 'Subiendo...' : 'Subir'}
+            </Button>
+          </Group>
+          {editCourseFileIds.content_file && <Text size="xs" color="green">ID contenido: {editCourseFileIds.content_file}</Text>}
+
+          <Group grow mt="sm" align="flex-end">
+            <FileInput
+              label="Archivo de temario"
+              placeholder="Selecciona el archivo de temario"
+              accept="application/pdf"
+              value={editCourseFiles.syllabus}
+              onChange={(file) => {
+                setEditCourseFiles(prev => ({ ...prev, syllabus: file }));
+                setEditCourseFileIds(prev => {
+                  const copy = { ...prev };
+                  delete copy.syllabus_file;
+                  return copy;
+                });
+              }}
+            />
+            <Button
+              size="sm"
+              disabled={!editCourseFiles.syllabus || editCourseUploadInProgress.syllabus}
+              onClick={() => uploadEditCourseFile(editCourseFiles.syllabus, 'syllabus')}
+            >
+              {editCourseUploadInProgress.syllabus ? 'Subiendo...' : 'Subir'}
+            </Button>
+          </Group>
+          {editCourseFileIds.syllabus_file && <Text size="xs" color="green">ID temario: {editCourseFileIds.syllabus_file}</Text>}
+
+          <Group grow mt="sm" align="flex-end">
+            <FileInput
+              label="Archivo de evaluación"
+              placeholder="Selecciona el archivo de evaluación"
+              accept="application/pdf"
+              value={editCourseFiles.assessment}
+              onChange={(file) => {
+                setEditCourseFiles(prev => ({ ...prev, assessment: file }));
+                setEditCourseFileIds(prev => {
+                  const copy = { ...prev };
+                  delete copy.assessment_file;
+                  return copy;
+                });
+              }}
+            />
+            <Button
+              size="sm"
+              disabled={!editCourseFiles.assessment || editCourseUploadInProgress.assessment}
+              onClick={() => uploadEditCourseFile(editCourseFiles.assessment, 'assessment')}
+            >
+              {editCourseUploadInProgress.assessment ? 'Subiendo...' : 'Subir'}
+            </Button>
+          </Group>
+          {editCourseFileIds.assessment_file && <Text size="xs" color="green">ID evaluación: {editCourseFileIds.assessment_file}</Text>}
+
           <Group justify="flex-end" mt="md">
             <Button type="submit" style={{ background: "#88a04b", color: "white" }}>Guardar cambios</Button>
           </Group>
