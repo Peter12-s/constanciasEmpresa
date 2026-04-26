@@ -151,8 +151,8 @@ export function CursosPage() {
   const [uploadedSign, setUploadedSign] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const courseForm = useForm({ initialValues: { titulo: "", duracion: "" } });
-  const editCourseForm = useForm({ initialValues: { titulo: "", duracion: "" } });
+  const courseForm = useForm({ initialValues: { titulo: "", duracion: "", link: "" } });
+  const editCourseForm = useForm({ initialValues: { titulo: "", duracion: "", link: "" } });
   const [editCourseFiles, setEditCourseFiles] = useState<{ content: File | null; syllabus: File | null; assessment: File | null }>({ content: null, syllabus: null, assessment: null });
   const [editCourseFileIds, setEditCourseFileIds] = useState<{ content_file?: string; syllabus_file?: string; assessment_file?: string }>({});
   const [editCourseUploadInProgress, setEditCourseUploadInProgress] = useState<{ content: boolean; syllabus: boolean; assessment: boolean }>({ content: false, syllabus: false, assessment: false });
@@ -519,7 +519,7 @@ export function CursosPage() {
     const curso = (coursesMap[capId] || []).find(c => c.id === cursoId);
     if (!curso) return;
     setEditCourseInfo({ capId, cursoId });
-    editCourseForm.setValues({ titulo: curso.titulo, duracion: curso.duracion });
+    editCourseForm.setValues({ titulo: curso.titulo, duracion: curso.duracion, link: "" });
     setEditCourseFiles({ content: null, syllabus: null, assessment: null });
     setEditCourseFileIds({});
     setEditCourseUploadInProgress({ content: false, syllabus: false, assessment: false });
@@ -540,7 +540,7 @@ export function CursosPage() {
         let payload: any;
         let headers: Record<string, string> = {};
 
-        payload = { name: editCourseForm.values.titulo || '', duration: durationNum };
+        payload = { name: editCourseForm.values.titulo || '', duration: durationNum, link: editCourseForm.values.link || '' };
         if (editCourseFileIds.content_file) payload.content_file = editCourseFileIds.content_file;
         if (editCourseFileIds.syllabus_file) payload.syllabus_file = editCourseFileIds.syllabus_file;
         if (editCourseFileIds.assessment_file) payload.assessment_file = editCourseFileIds.assessment_file;
@@ -893,6 +893,7 @@ export function CursosPage() {
             const payload: Record<string, any> = {
               name: courseForm.values.titulo || '',
               duration: Number.isFinite(durationNum) ? Math.max(0, Math.trunc(durationNum)) : 0,
+              link: courseForm.values.link || '',
             };
             if (newCourseFileIds.content_file) payload.content_file = newCourseFileIds.content_file;
             if (newCourseFileIds.syllabus_file) payload.syllabus_file = newCourseFileIds.syllabus_file;
@@ -916,6 +917,8 @@ export function CursosPage() {
             style={{ textTransform: 'uppercase' }}
           />
           <TextInput label="Duración" mt="sm" {...courseForm.getInputProps("duracion")} />
+
+          <TextInput placeholder="Opcional" label="Link" mt="sm" {...courseForm.getInputProps("link")} />
 
           <Group grow mt="sm" align="flex-end">
             <FileInput
@@ -1066,6 +1069,7 @@ export function CursosPage() {
             style={{ textTransform: 'uppercase' }}
           />
           <TextInput label="Duración" mt="sm" {...editCourseForm.getInputProps("duracion")} />
+          <TextInput label="Link" mt="sm" {...editCourseForm.getInputProps("link")} />
 
           <Group grow mt="sm" align="flex-end">
             <FileInput

@@ -14,7 +14,7 @@ import {
   Stack,
   Badge,
 } from '@mantine/core';
-import { FaUpload, FaSearch, FaDownload } from 'react-icons/fa';
+import { FaUpload, FaSearch, FaDownload, FaExternalLinkAlt } from 'react-icons/fa';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { showNotification } from '@mantine/notifications';
@@ -37,6 +37,7 @@ interface Curso {
   content_file?: string | null;
   syllabus_file?: string | null;
   assessment_file?: string | null;
+  link?: string | null;
 }
 
 interface TableRow {
@@ -100,6 +101,7 @@ export function BibliotecaPage() {
               content_file: course.content_file ?? course.contentFile ?? null,
               syllabus_file: course.syllabus_file ?? course.syllabusFile ?? null,
               assessment_file: course.assessment_file ?? course.assessmentFile ?? null,
+              link: course.link ?? null,
             } as Curso;
           });
         }
@@ -310,21 +312,32 @@ export function BibliotecaPage() {
                 </Badge>
               </Table.Td>
               <Table.Td>
-                {(() => {
-                  const hasFiles = !!(row.course.content_file || row.course.syllabus_file || row.course.assessment_file);
-                  return (
+                <Group gap="xs">
+                  {(() => {
+                    const hasFiles = !!(row.course.content_file || row.course.syllabus_file || row.course.assessment_file);
+                    return (
+                      <Button
+                        leftSection={<FaDownload size={14} />}
+                        onClick={() => downloadCourseFilesZip(row.course)}
+                        size="sm"
+                        variant="filled"
+                        disabled={!hasFiles}
+                        title={!hasFiles ? 'No tiene ningún archivo cargado' : ''}
+                      >
+                        {hasFiles ? 'Descargar ZIP' : 'Sin archivos'}
+                      </Button>
+                    );
+                  })()}
+                  {row.course.link && (
                     <Button
-                      leftSection={<FaDownload size={14} />}
-                      onClick={() => downloadCourseFilesZip(row.course)}
+                      leftSection={<FaExternalLinkAlt size={14} />}
+                      onClick={() => window.open(row.course.link!, '_blank')}
                       size="sm"
-                      variant="filled"
-                      disabled={!hasFiles}
-                      title={!hasFiles ? 'No tiene ningún archivo cargado' : ''}
-                    >
-                      {hasFiles ? 'Descargar ZIP' : 'Sin archivos'}
-                    </Button>
-                  );
-                })()}
+                      variant="outline"
+                      title="Abrir link en nueva pestaña"
+                    />
+                  )}
+                </Group>
               </Table.Td>
             </Table.Tr>
           ))}
